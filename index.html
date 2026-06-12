@@ -1,113 +1,394 @@
 <!DOCTYPE html>
+<script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Clearance Price Tracker",
+  "schemaVersion": 1,
+  "description": "Clearance item tracker with brand-tiered starting discounts, automatic 10% price drops every 30 days, and bulk CSV import. Persists across sessions."
+}
+</script>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Clearance Tracker</title>
+<title>Clearance Price Tracker</title>
 <style>
   :root { color-scheme: light; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f2ece2; color: #1a1a1a; font-size: 14px; }
-  .header { background: #2a1a0e; color: white; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .header h1 { font-size: 18px; font-weight: 600; }
+
+  body {
+    font-family: 'Times New Roman', Times, serif;
+    background: #f5f5f5;
+    color: #1a1a1a;
+    font-size: 14px;
+  }
+  button, input, select, textarea { font-family: inherit; }
+
+  .header {
+    background: #1a1a2e;
+    color: white;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; font-family: 'Times New Roman', Times, serif; }
+  .logo-mark {
+    width: 30px; height: 30px;
+    background: #e85d26;
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 16px; color: white;
+    box-shadow: 0 2px 6px rgba(232,93,38,0.4);
+  }
+  .header h1 {
+    font-size: 17px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+  .logo-accent { color: #e85d26; font-weight: 600; }
   .header-right { display: flex; gap: 10px; align-items: center; }
-  .btn { padding: 7px 14px; border-radius: 10px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; transition: opacity 0.15s; }
+
+  .btn {
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: opacity 0.15s;
+  }
   .btn:hover { opacity: 0.85; }
-  .btn-primary { background: #b85c30; color: white; }
+  .btn-primary { background: #e85d26; color: white; }
   .btn-secondary { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); }
   .btn-small { padding: 4px 10px; font-size: 12px; }
-  .btn-danger { background: #b84030; color: white; }
-  .btn-ghost { background: transparent; color: #7a5a40; border: 1px solid #c9b89a; }
+  .btn-danger { background: #dc2626; color: white; }
+  .btn-ghost { background: transparent; color: #666; border: 1px solid #ddd; }
+
   .main { padding: 20px; max-width: 1400px; margin: 0 auto; }
-  .stats-bar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
-  .stat-card { background: #fdf8f2; border-radius: 12px; padding: 14px 16px; border: 1px solid #d4c4b0; }
-  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #9a7a60; margin-bottom: 4px; }
-  .stat-value { font-size: 22px; font-weight: 700; color: #2a1a0e; }
-  .stat-sub { font-size: 11px; color: #9a7a60; margin-top: 2px; }
-  .stat-card.alert { border-color: #fca5a5; background: #fff5f5; }
-  .stat-card.alert .stat-value { color: #dc2626; }
-  .settings-panel { background: #fdf8f2; border: 1px solid #d4c4b0; border-radius: 12px; padding: 16px; margin-bottom: 20px; display: none; }
+
+  /* Stats bar */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: white;
+    border-radius: 8px;
+    padding: 14px 16px;
+    border: 1px solid #e5e5e5;
+  }
+  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 4px; }
+  .stat-value { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+  .stat-sub { font-size: 11px; color: #888; margin-top: 2px; }
+
+  /* Settings panel */
+  .settings-panel {
+    background: white;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+    display: none;
+  }
   .settings-panel.open { display: block; }
   .settings-panel h3 { font-size: 14px; font-weight: 600; margin-bottom: 14px; color: #333; }
   .settings-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  .setting-group label { font-size: 12px; color: #6a4a30; display: block; margin-bottom: 4px; }
-  .setting-group input { width: 100%; padding: 6px 10px; border: 1px solid #c9b89a; border-radius: 5px; font-size: 13px; }
+  .setting-group label { font-size: 12px; color: #555; display: block; margin-bottom: 4px; }
+  .setting-group input {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 13px;
+  }
+  .overrides-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .overrides-table th { background: #f8f8f8; padding: 6px 10px; text-align: left; border-bottom: 1px solid #e5e5e5; color: #666; font-weight: 600; }
+  .overrides-table td { padding: 5px 10px; border-bottom: 1px solid #f0f0f0; }
+  .overrides-table tr:last-child td { border-bottom: none; }
+  .overrides-table input[type=number] { width: 55px; padding: 3px 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; }
+  .tier-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+
   .brand-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .brand-tag { background: #f0f0f0; border-radius: 20px; padding: 3px 10px; font-size: 12px; cursor: pointer; border: 1px solid #c9b89a; display: flex; align-items: center; gap: 5px; }
+  .brand-tag {
+    background: #f0f0f0;
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    border: 1px solid #ddd;
+    display: flex; align-items: center; gap: 5px;
+  }
   .brand-tag.premium { background: #fef3c7; border-color: #f59e0b; }
-  .brand-tag .remove { color: #a08060; font-size: 14px; line-height: 1; }
+  .brand-tag .remove { color: #999; font-size: 14px; line-height: 1; }
   .brand-tag .remove:hover { color: #dc2626; }
-  .add-form { background: #fdf8f2; border: 1px solid #d4c4b0; border-radius: 12px; padding: 16px; margin-bottom: 20px; display: none; }
+
+  /* Add item form */
+  .add-form {
+    background: white;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+    display: none;
+  }
   .add-form.open { display: block; }
   .add-form h3 { font-size: 14px; font-weight: 600; margin-bottom: 14px; }
   .form-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; align-items: end; }
-  .form-group label { font-size: 12px; color: #6a4a30; display: block; margin-bottom: 4px; }
-  .form-group input, .form-group select { width: 100%; padding: 8px 10px; border: 1px solid #c9b89a; border-radius: 10px; font-size: 13px; outline: none; }
-  .form-group input:focus { border-color: #2a1a0e; }
+  .form-group label { font-size: 12px; color: #555; display: block; margin-bottom: 4px; }
+  .form-group input, .form-group select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: #1a1a2e; }
   .form-actions { display: flex; gap: 8px; margin-top: 14px; }
-  .filter-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
-  .filter-bar input { padding: 7px 12px; border: 1px solid #c9b89a; border-radius: 10px; font-size: 13px; width: 220px; outline: none; }
-  .filter-bar select { padding: 7px 10px; border: 1px solid #c9b89a; border-radius: 10px; font-size: 13px; outline: none; }
-  .filter-label { font-size: 12px; color: #9a7a60; }
-  .table-wrap { background: #fdf8f2; border-radius: 12px; border: 1px solid #d4c4b0; overflow: hidden; }
+
+  /* Filter bar */
+  .filter-bar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .filter-bar input {
+    padding: 7px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    width: 220px;
+    outline: none;
+  }
+  .filter-bar select {
+    padding: 7px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+  }
+  .filter-label { font-size: 12px; color: #888; }
+
+  /* Age gradient legend */
+  .age-legend {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 11px;
+    color: #666;
+  }
+  .age-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .age-legend i {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border-radius: 3px;
+    border: 1px solid rgba(0,0,0,0.08);
+  }
+
+  /* Table */
+  .table-wrap {
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e5e5e5;
+    overflow: hidden;
+  }
   table { width: 100%; border-collapse: collapse; }
-  thead th { background: #f0e8dc; padding: 10px 14px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #8a6a50; border-bottom: 1px solid #e5e5e5; white-space: nowrap; }
-  tbody tr { border-bottom: 1px solid #f0f0f0; transition: background 0.1s; cursor: pointer; }
+  thead th {
+    background: #f8f8f8;
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #777;
+    border-bottom: 1px solid #e5e5e5;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  thead th:hover { background: #efefef; color: #333; }
+  thead th .sort-icon { margin-left: 4px; opacity: 0.4; }
+  thead th.sorted .sort-icon { opacity: 1; }
+  tbody tr { border-bottom: 1px solid #f0f0f0; transition: background 0.1s; }
   tbody tr:last-child { border-bottom: none; }
-  tbody tr:hover { background: #f7f0e8; }
+  tbody tr:hover { background: #fafafa; }
   td { padding: 11px 14px; font-size: 13px; }
-  .item-name { font-weight: 500; color: #2a1a0e; }
-  .item-model { font-size: 11px; color: #9a7a60; margin-top: 1px; }
-  .brand-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+
+  .item-name { font-weight: 500; color: #1a1a2e; }
+  .item-model { font-size: 11px; color: #888; margin-top: 1px; }
+
+  .brand-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
   .badge-premium { background: #fef3c7; color: #92400e; }
-  .badge-standard { background: #dde8d4; color: #3a5a28; }
-  .price-list { color: #a08060; text-decoration: line-through; font-size: 12px; }
-  .price-current { font-weight: 700; font-size: 15px; color: #2a1a0e; }
-  .discount-pill { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-  .disc-low { background: #d4ead4; color: #2a5a2a; }
+  .badge-standard { background: #e0f2fe; color: #0369a1; }
+
+  .price-list { color: #999; text-decoration: line-through; font-size: 12px; }
+  .price-current { font-weight: 700; font-size: 15px; color: #1a1a2e; }
+
+  .discount-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .disc-low { background: #dcfce7; color: #166534; }
   .disc-mid { background: #fef9c3; color: #854d0e; }
   .disc-high { background: #fee2e2; color: #991b1b; }
+
   .age-bar-wrap { display: flex; align-items: center; gap: 8px; min-width: 120px; }
   .age-bar-bg { flex: 1; height: 5px; background: #eee; border-radius: 3px; overflow: hidden; }
-  .age-bar-fill { height: 100%; border-radius: 3px; }
-  .age-days { font-size: 11px; color: #9a7a60; white-space: nowrap; }
-  .next-drop { font-size: 11px; color: #9a7a60; white-space: nowrap; }
-  .next-drop.soon { color: #b85c30; font-weight: 600; }
+  .age-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+  .age-days { font-size: 11px; color: #888; white-space: nowrap; }
+
+  .next-drop { font-size: 11px; color: #888; white-space: nowrap; }
+  .next-drop.soon { color: #e85d26; font-weight: 600; }
+
+  .actions-cell { display: flex; gap: 6px; }
+
+  /* At-cost alert */
   .at-cost-row { background: #fff5f5 !important; border-left: 3px solid #dc2626; }
   .at-cost-row:hover { background: #fee2e2 !important; }
-  .cost-alert-badge { display: inline-flex; align-items: center; background: #b84030; color: white; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; margin-left: 6px; animation: pulse 2s infinite; }
-  .near-cost-badge { display: inline-flex; align-items: center; background: #f59e0b; color: white; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; margin-left: 6px; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
-  .empty-state { text-align: center; padding: 60px 20px; color: #b89878; }
+  .cost-alert-badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    background: #dc2626; color: white;
+    font-size: 10px; font-weight: 700;
+    padding: 2px 7px; border-radius: 20px;
+    margin-left: 6px; white-space: nowrap;
+    animation: pulse 2s infinite;
+  }
+  .near-cost-badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    background: #f59e0b; color: white;
+    font-size: 10px; font-weight: 700;
+    padding: 2px 7px; border-radius: 20px;
+    margin-left: 6px; white-space: nowrap;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+  .stat-card.alert { border-color: #fca5a5; background: #fff5f5; }
+  .stat-card.alert .stat-value { color: #dc2626; }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #aaa;
+  }
   .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
-  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; align-items: center; justify-content: center; }
+  .empty-state p { font-size: 14px; }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
   .modal-overlay.open { display: flex; }
-  .modal { background: #fdf8f2; border-radius: 10px; padding: 24px; width: 460px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+  .modal {
+    background: white;
+    border-radius: 10px;
+    padding: 24px;
+    width: 460px;
+    max-width: 95vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
   .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
-  .modal-label { font-size: 11px; color: #9a7a60; text-transform: uppercase; letter-spacing: 0.5px; }
+  .modal-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
   .modal-value { font-size: 15px; margin-bottom: 10px; font-weight: 500; }
-  .modal-price { font-size: 26px; font-weight: 700; color: #b85c30; margin: 12px 0; }
+  .modal-price { font-size: 26px; font-weight: 700; color: #e85d26; margin: 12px 0; }
   .modal-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13px; }
   .modal-table td { padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
   .modal-table td:last-child { text-align: right; font-weight: 500; }
   .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
-  .overrides-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  .overrides-table th { background: #f0e8dc; padding: 6px 10px; text-align: left; border-bottom: 1px solid #e5e5e5; color: #7a5a40; font-weight: 600; }
-  .overrides-table td { padding: 5px 10px; border-bottom: 1px solid #f0f0f0; }
-  .overrides-table tr:last-child td { border-bottom: none; }
-  .tier-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
-  .toast { position: fixed; bottom: 24px; right: 24px; background: #2a1a0e; color: white; padding: 10px 16px; border-radius: 12px; font-size: 13px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 200; }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: #1a1a2e; color: white;
+    padding: 10px 16px; border-radius: 8px;
+    font-size: 13px; opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+    z-index: 200;
+  }
   .toast.show { opacity: 1; }
-  @media (max-width: 1200px) { .stats-bar { grid-template-columns: repeat(3,1fr); } .form-grid { grid-template-columns: repeat(3,1fr); } }
-  @media (max-width: 900px) { .stats-bar { grid-template-columns: repeat(2,1fr); } .form-grid { grid-template-columns: repeat(2,1fr); } .settings-grid { grid-template-columns: 1fr; } }
+
+  /* CSV Import */
+  .import-drop {
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    padding: 18px;
+    text-align: center;
+    color: #888;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .import-drop:hover, .import-drop.dragover { border-color: #e85d26; background: #fff8f5; color: #555; }
+  .import-textarea {
+    width: 100%;
+    height: 90px;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    resize: vertical;
+    outline: none;
+  }
+  .import-textarea:focus { border-color: #1a1a2e; }
+  .import-preview-wrap { max-height: 260px; overflow-y: auto; border: 1px solid #e5e5e5; border-radius: 6px; margin-top: 12px; }
+  .import-preview-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .import-preview-table th { background: #f8f8f8; padding: 6px 8px; text-align: left; color: #666; font-weight: 600; position: sticky; top: 0; }
+  .import-preview-table td { padding: 5px 8px; border-top: 1px solid #f0f0f0; white-space: nowrap; }
+  .import-row-ok td:first-child { color: #16a34a; }
+  .import-row-error { background: #fff5f5; }
+  .import-row-error td:first-child { color: #dc2626; }
+  .import-row-dup { background: #fffbeb; }
+  .import-row-dup td:first-child { color: #d97706; }
+  .import-summary { display: flex; gap: 14px; margin-top: 10px; font-size: 12px; flex-wrap: wrap; }
+  .import-summary span { display: inline-flex; align-items: center; gap: 4px; }
+
+  @media (max-width: 900px) {
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    .form-grid { grid-template-columns: repeat(2, 1fr); }
+    .settings-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 1200px) {
+    .stats-bar { grid-template-columns: repeat(3, 1fr); }
+    .form-grid { grid-template-columns: repeat(3, 1fr); }
+  }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>🏷️ Clearance Tracker</h1>
+  <div class="logo">
+    <span class="logo-mark">%</span>
+    <h1>Clearance <span class="logo-accent">Price Tracker</span></h1>
+  </div>
   <div class="header-right">
-    <a href="/hub" id="hubLink" style="padding:4px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.1);color:white;font-size:12px;font-weight:500;text-decoration:none;">💰 Ops Hub</a>
+    <button class="btn btn-secondary btn-small" onclick="openImportModal()">⬆ Import CSV</button>
     <button class="btn btn-secondary btn-small" onclick="exportCSV()">⬇ Export CSV</button>
     <button class="btn btn-secondary btn-small" onclick="toggleSettings()">⚙️ Settings</button>
     <button class="btn btn-primary" onclick="toggleForm()">+ Add Item</button>
@@ -115,23 +396,58 @@
 </div>
 
 <div class="main">
-  <div class="stats-bar">
-    <div class="stat-card"><div class="stat-label">Total Items</div><div class="stat-value" id="statTotal">0</div><div class="stat-sub">on clearance</div></div>
-    <div class="stat-card"><div class="stat-label">Total List Value</div><div class="stat-value" id="statListValue">$0</div><div class="stat-sub">original retail</div></div>
-    <div class="stat-card"><div class="stat-label">Current Value</div><div class="stat-value" id="statCurrentValue">$0</div><div class="stat-sub">at today's prices</div></div>
-    <div class="stat-card"><div class="stat-label">Dropping Soon</div><div class="stat-value" id="statDropping">0</div><div class="stat-sub">price drop within 7 days</div></div>
-    <div class="stat-card" id="statAtCostCard"><div class="stat-label">⚠️ At or Below Cost</div><div class="stat-value" id="statAtCost">0</div><div class="stat-sub">need attention</div></div>
+
+  <!-- Stats -->
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-card">
+      <div class="stat-label">Total Items</div>
+      <div class="stat-value" id="statTotal">0</div>
+      <div class="stat-sub">on clearance</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total List Value</div>
+      <div class="stat-value" id="statListValue">$0</div>
+      <div class="stat-sub">original retail</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Current Value</div>
+      <div class="stat-value" id="statCurrentValue">$0</div>
+      <div class="stat-sub">at today's prices</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Dropping Soon</div>
+      <div class="stat-value" id="statDropping">0</div>
+      <div class="stat-sub">price drop within 7 days</div>
+    </div>
+    <div class="stat-card" id="statAtCostCard">
+      <div class="stat-label">⚠️ At or Below Cost</div>
+      <div class="stat-value" id="statAtCost">0</div>
+      <div class="stat-sub">need attention</div>
+    </div>
   </div>
 
+  <!-- Settings Panel -->
   <div class="settings-panel" id="settingsPanel">
     <h3>Pricing Settings</h3>
     <div class="settings-grid">
-      <div class="setting-group"><label>Premium Brand Starting Discount (%)</label><input type="number" id="settingPremiumDiscount" min="0" max="90" value="22" onchange="saveSettings()"><div style="font-size:11px;color:#888;margin-top:4px;">Fallback when no per-brand override</div></div>
-      <div class="setting-group"><label>Standard Brand Starting Discount (%)</label><input type="number" id="settingStandardDiscount" min="0" max="90" value="30" onchange="saveSettings()"></div>
-      <div class="setting-group"><label>Additional Discount Every 30 Days (%)</label><input type="number" id="settingAgingDiscount" min="0" max="30" value="10" onchange="saveSettings()"></div>
+      <div class="setting-group">
+        <label>Premium Brand Starting Discount (%)</label>
+        <input type="number" id="settingPremiumDiscount" min="0" max="90" value="20" onchange="saveSettings()">
+        <div style="font-size:11px;color:#888;margin-top:4px;">SubZero, Miele, Wolf, etc.</div>
+      </div>
+      <div class="setting-group">
+        <label>Standard Brand Starting Discount (%)</label>
+        <input type="number" id="settingStandardDiscount" min="0" max="90" value="30" onchange="saveSettings()">
+        <div style="font-size:11px;color:#888;margin-top:4px;">All other brands</div>
+      </div>
+      <div class="setting-group">
+        <label>Additional Discount Every 30 Days (%)</label>
+        <input type="number" id="settingAgingDiscount" min="0" max="30" value="10" onchange="saveSettings()">
+        <div style="font-size:11px;color:#888;margin-top:4px;">Stacks on top of starting discount</div>
+      </div>
     </div>
     <div style="margin-top:20px;">
-      <label style="font-size:12px;color:#555;display:block;margin-bottom:8px;font-weight:600;">Per-Brand Starting Discounts <span style="color:#888;font-weight:400;">(based on your sales data)</span></label>
+      <label style="font-size:12px;color:#555;display:block;margin-bottom:8px;font-weight:600;">Per-Brand Starting Discounts <span style="color:#888;font-weight:400;">(overrides tier defaults above — based on your sales data)</span></label>
       <div id="brandOverridesTable"></div>
       <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
         <input type="text" id="addOverrideBrand" placeholder="Brand name…" style="padding:6px 10px;border:1px solid #ddd;border-radius:5px;font-size:13px;width:180px;">
@@ -141,7 +457,7 @@
       </div>
     </div>
     <div style="margin-top:20px;">
-      <label style="font-size:12px;color:#555;display:block;margin-bottom:8px;font-weight:600;">Premium Brands</label>
+      <label style="font-size:12px;color:#555;display:block;margin-bottom:8px;font-weight:600;">Premium Brands <span style="color:#888;font-weight:400;">(used when no per-brand override exists)</span></label>
       <div class="brand-tags" id="premiumBrandTags"></div>
       <div style="display:flex;gap:8px;margin-top:10px;">
         <input type="text" id="addBrandInput" placeholder="Add brand name…" style="padding:6px 10px;border:1px solid #ddd;border-radius:5px;font-size:13px;flex:1;">
@@ -150,15 +466,35 @@
     </div>
   </div>
 
+  <!-- Add Item Form -->
   <div class="add-form" id="addForm">
     <h3>Add Clearance Item</h3>
     <div class="form-grid">
-      <div class="form-group"><label>Item Name *</label><input type="text" id="fName" placeholder="e.g. Refrigerator 36&quot;"></div>
-      <div class="form-group"><label>Brand *</label><input type="text" id="fBrand" placeholder="e.g. SubZero" oninput="autoDetectBrandTier()"></div>
-      <div class="form-group"><label>Model / SKU</label><input type="text" id="fModel" placeholder="e.g. BI-36UFD"></div>
-      <div class="form-group"><label>List Price *</label><input type="number" id="fPrice" placeholder="0.00" min="0" step="0.01"></div>
-      <div class="form-group"><label>Date Added to Clearance *</label><input type="date" id="fDate"></div>
-      <div class="form-group"><label>Your Cost</label><input type="number" id="fCost" placeholder="0.00" min="0" step="0.01"><div style="font-size:10px;color:#888;margin-top:3px;">Alert triggers when price ≤ cost</div></div>
+      <div class="form-group">
+        <label>Item Name *</label>
+        <input type="text" id="fName" placeholder="e.g. Refrigerator 36&quot;">
+      </div>
+      <div class="form-group">
+        <label>Brand *</label>
+        <input type="text" id="fBrand" placeholder="e.g. SubZero" oninput="autoDetectBrandTier()">
+      </div>
+      <div class="form-group">
+        <label>Model / SKU</label>
+        <input type="text" id="fModel" placeholder="e.g. BI-36UFD">
+      </div>
+      <div class="form-group">
+        <label>List Price *</label>
+        <input type="number" id="fPrice" placeholder="0.00" min="0" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>Date Added to Clearance *</label>
+        <input type="date" id="fDate">
+      </div>
+      <div class="form-group">
+        <label>Your Cost <span style="color:#dc2626;">*</span></label>
+        <input type="number" id="fCost" placeholder="0.00" min="0" step="0.01">
+        <div style="font-size:10px;color:#888;margin-top:3px;">Alert triggers when clearance price ≤ cost</div>
+      </div>
     </div>
     <div style="margin-top:12px;font-size:13px;color:#555;" id="brandTierPreview"></div>
     <div class="form-actions">
@@ -167,12 +503,13 @@
     </div>
   </div>
 
+  <!-- Filter Bar -->
   <div class="filter-bar">
     <input type="text" id="searchInput" placeholder="🔍 Search items…" oninput="renderTable()">
     <select id="filterBrand" onchange="renderTable()">
       <option value="">All brands</option>
-      <option value="premium">Premium only</option>
-      <option value="standard">Standard only</option>
+      <option value="premium">Premium brands only</option>
+      <option value="standard">Standard brands only</option>
       <option value="atcost">⚠️ At or below cost</option>
     </select>
     <select id="filterSort" onchange="renderTable()">
@@ -186,12 +523,32 @@
     <span class="filter-label" id="filterCount"></span>
   </div>
 
+  <!-- Age gradient legend -->
+  <div class="age-legend">
+    <span><i style="background:#fef08a;"></i>Repriced at 30d</span>
+    <span><i style="background:#fce7f3;"></i>31–59d</span>
+    <span><i style="background:#fdba74;"></i>Repriced at 60d</span>
+    <span><i style="background:#fed7aa;"></i>61–89d</span>
+    <span><i style="background:#fca5a5;"></i>Repriced at 90d+</span>
+    <span><i style="background:#e9d5ff;"></i>Past 90d</span>
+  </div>
+
+  <!-- Table -->
   <div class="table-wrap">
     <table>
-      <thead><tr>
-        <th>Item</th><th>Brand</th><th>List Price</th><th>Current Price</th>
-        <th>Discount</th><th>Age</th><th>Next Drop</th><th>vs. Cost</th><th></th>
-      </tr></thead>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Brand</th>
+          <th>List Price</th>
+          <th>Current Price</th>
+          <th>Discount</th>
+          <th>Age</th>
+          <th>Next Drop</th>
+          <th>vs. Cost</th>
+          <th></th>
+        </tr>
+      </thead>
       <tbody id="tableBody"></tbody>
     </table>
     <div class="empty-state" id="emptyState" style="display:none;">
@@ -201,6 +558,7 @@
   </div>
 </div>
 
+<!-- Detail Modal -->
 <div class="modal-overlay" id="detailModal">
   <div class="modal">
     <h3 id="modalTitle">Item Detail</h3>
@@ -212,27 +570,79 @@
   </div>
 </div>
 
+<!-- Import Modal -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal" style="width:680px;">
+    <h3>⬆ Import Items from CSV</h3>
+    <div style="font-size:12px;color:#666;margin-bottom:12px;line-height:1.5;">
+      Required columns: <strong>Item Name, Brand, List Price</strong>. Optional: Model, Your Cost, Date Added (defaults to today).
+      Header names are matched flexibly — files exported from this tracker re-import as-is.
+      <a href="#" onclick="downloadImportTemplate();return false;" style="color:#e85d26;">Download template</a>
+    </div>
+    <div class="import-drop" id="importDrop" onclick="document.getElementById('importFile').click()">
+      📄 Click to choose a .csv file, or drag &amp; drop it here
+    </div>
+    <input type="file" id="importFile" accept=".csv,text/csv,text/plain" style="display:none;" onchange="handleImportFile(this.files)">
+    <div style="font-size:12px;color:#888;margin:10px 0 6px;">…or paste CSV text:</div>
+    <textarea class="import-textarea" id="importPaste" placeholder="Item Name,Brand,Model,List Price,Your Cost,Date Added&#10;Refrigerator 36&quot;,Sub-Zero,BI-36UFD,11999.00,7800.00,2026-05-01" oninput="parseImportText(this.value)"></textarea>
+    <div id="importPreview"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="importConfirmBtn" onclick="confirmImport()" disabled>Import</button>
+      <button class="btn btn-ghost" onclick="closeImportModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
 <div class="toast" id="toast"></div>
 
 <script>
-// ─── State ────────────────────────────────────────────────────────────────────
+// ===================== STATE =====================
+const LS_ITEMS = 'clearance_items_v2';
+const LS_SETTINGS = 'clearance_settings_v2';
+
+const DEFAULT_SETTINGS = {
+  premiumDiscount: 22,
+  standardDiscount: 30,
+  agingDiscount: 10,
+  premiumBrands: ['SubZero','Sub-Zero','Miele','Fisher & Paykel','Fisher and Paykel','Jenn-Air','Jenn Air','JennAir','Bosch','Wolf','Gaggenau','Thermador','Viking','La Cornue','Hestan','Signature Kitchen Suites','BlueStar'],
+  brandOverrides: {
+    'Sub-Zero': 15, 'SubZero': 15, 'SUB ZERO': 15,
+    'Wolf': 15, 'WOLF': 15,
+    'Bosch': 15, 'BOSCH': 15,
+    'Miele': 22, 'MIELE': 22,
+    'Gaggenau': 22, 'GAGGENAU': 22,
+    'Thermador': 22, 'THERMADOR': 22,
+    'Viking': 22, 'VIKING': 22,
+    'Jenn-Air': 30, 'Jenn Air': 30, 'JennAir': 30, 'JENN-AIR': 30,
+    'Fisher & Paykel': 30, 'Fisher and Paykel': 30, 'FISHER & PAYKEL': 30,
+    'LG': 35, 'LG Appliances': 35, 'LG APPLIANCES': 35,
+    'KitchenAid': 35, 'KITCHENAID': 35,
+    'Whirlpool': 35, 'WHIRLPOOL': 35,
+    'Samsung': 22, 'SAMSUNG': 22,
+    'General Electric': 22, 'GE': 22, 'GENERAL ELECTRIC': 22,
+    'GE Profile': 22, 'GE PROFILE': 22,
+    'GE Cafe': 22, 'GE CAFE': 22,
+    'Electrolux': 22, 'ELECTROLUX': 22,
+    'Monogram': 25, 'MONOGRAM': 25,
+  }
+};
+
 let items = [];
 let settings = {};
 let currentModalId = null;
 
-// ─── Storage (localStorage) ───────────────────────────────────────────────────
-const LS_ITEMS    = 'clearance_items_v2';
-const LS_SETTINGS = 'clearance_settings_v2';
+// ===================== INIT =====================
+function init() {
+  const saved = localStorage.getItem(LS_ITEMS);
+  items = saved ? JSON.parse(saved) : [];
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
-async function init() {
-  try {
-    items    = JSON.parse(localStorage.getItem(LS_ITEMS) || '[]');
-    settings = JSON.parse(localStorage.getItem(LS_SETTINGS) || 'null') || {};
-  } catch (e) {
-    items = []; settings = {};
-  }
+  const savedSettings = localStorage.getItem(LS_SETTINGS);
+  settings = savedSettings ? JSON.parse(savedSettings) : { ...DEFAULT_SETTINGS };
+
+  // Set today as default date
   document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
+
   loadSettingsUI();
   renderPremiumBrandTags();
   renderBrandOverridesTable();
@@ -240,17 +650,19 @@ async function init() {
   updateStats();
 }
 
-// ─── Settings ─────────────────────────────────────────────────────────────────
-function toggleSettings() { document.getElementById('settingsPanel').classList.toggle('open'); }
+// ===================== SETTINGS =====================
+function toggleSettings() {
+  document.getElementById('settingsPanel').classList.toggle('open');
+}
 
 function loadSettingsUI() {
-  document.getElementById('settingPremiumDiscount').value = settings.premiumDiscount || 22;
-  document.getElementById('settingStandardDiscount').value = settings.standardDiscount || 30;
-  document.getElementById('settingAgingDiscount').value = settings.agingDiscount || 10;
+  document.getElementById('settingPremiumDiscount').value = settings.premiumDiscount;
+  document.getElementById('settingStandardDiscount').value = settings.standardDiscount;
+  document.getElementById('settingAgingDiscount').value = settings.agingDiscount;
 }
 
 function saveSettings() {
-  settings.premiumDiscount = parseInt(document.getElementById('settingPremiumDiscount').value) || 22;
+  settings.premiumDiscount = parseInt(document.getElementById('settingPremiumDiscount').value) || 20;
   settings.standardDiscount = parseInt(document.getElementById('settingStandardDiscount').value) || 30;
   settings.agingDiscount = parseInt(document.getElementById('settingAgingDiscount').value) || 10;
   localStorage.setItem(LS_SETTINGS, JSON.stringify(settings));
@@ -262,10 +674,7 @@ function saveSettings() {
 
 function renderPremiumBrandTags() {
   const container = document.getElementById('premiumBrandTags');
-  (settings.premiumBrands || []).map((b, i) =>
-    `<span class="brand-tag premium">${b} <span class="remove" onclick="removePremiumBrand(${i})">×</span></span>`
-  ).join('');
-  container.innerHTML = (settings.premiumBrands || []).map((b, i) =>
+  container.innerHTML = settings.premiumBrands.map((b, i) =>
     `<span class="brand-tag premium">${b} <span class="remove" onclick="removePremiumBrand(${i})">×</span></span>`
   ).join('');
 }
@@ -274,7 +683,6 @@ function addPremiumBrand() {
   const input = document.getElementById('addBrandInput');
   const val = input.value.trim();
   if (!val) return;
-  if (!settings.premiumBrands) settings.premiumBrands = [];
   if (!settings.premiumBrands.includes(val)) {
     settings.premiumBrands.push(val);
     localStorage.setItem(LS_SETTINGS, JSON.stringify(settings));
@@ -291,25 +699,27 @@ function removePremiumBrand(idx) {
   localStorage.setItem(LS_SETTINGS, JSON.stringify(settings));
   renderPremiumBrandTags();
   renderTable();
-  showToast(`${name} removed`);
+  showToast(`${name} removed from premium`);
 }
 
-// ─── Brand logic ──────────────────────────────────────────────────────────────
+// ===================== BRAND LOGIC =====================
 function isPremium(brand) {
-  const b = (brand || '').toLowerCase().trim();
-  return (settings.premiumBrands || []).some(pb => {
-    const pbl = pb.toLowerCase().trim();
-    return pbl === b || b.includes(pbl) || pbl.includes(b);
-  });
+  const b = brand.toLowerCase().trim();
+  return settings.premiumBrands.some(pb => pb.toLowerCase().trim() === b ||
+    b.includes(pb.toLowerCase().trim()) || pb.toLowerCase().trim().includes(b));
 }
 
 function getBrandStartingDiscount(brand) {
   if (!brand) return null;
   const overrides = settings.brandOverrides || {};
+  // exact match first
+  if (overrides[brand] !== undefined) return overrides[brand];
+  // case-insensitive match
   const bl = brand.toLowerCase().trim();
   for (const [k, v] of Object.entries(overrides)) {
     if (k.toLowerCase().trim() === bl) return v;
   }
+  // partial match
   for (const [k, v] of Object.entries(overrides)) {
     if (bl.includes(k.toLowerCase().trim()) || k.toLowerCase().trim().includes(bl)) return v;
   }
@@ -318,30 +728,37 @@ function getBrandStartingDiscount(brand) {
 
 function calcDiscount(item) {
   const override = getBrandStartingDiscount(item.brand);
-  const start = override !== null ? override : (isPremium(item.brand) ? (settings.premiumDiscount || 22) : (settings.standardDiscount || 30));
-  const periods = Math.floor(daysSince(item.date) / 30);
-  return Math.min(start + periods * (settings.agingDiscount || 10), 95);
+  const start = override !== null ? override : (isPremium(item.brand) ? settings.premiumDiscount : settings.standardDiscount);
+  const days = daysSince(item.date);
+  const periods = Math.floor(days / 30);
+  return Math.min(start + periods * settings.agingDiscount, 95);
 }
 
-function calcPrice(item) { return item.list_price * (1 - calcDiscount(item) / 100); }
+function calcPrice(item) {
+  const disc = calcDiscount(item);
+  return item.listPrice * (1 - disc / 100);
+}
 
 function daysSince(dateStr) {
   const then = new Date(dateStr + 'T00:00:00');
-  const now = new Date(); now.setHours(0,0,0,0);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
   return Math.floor((now - then) / 86400000);
 }
 
 function daysUntilNextDrop(item) {
   const days = daysSince(item.date);
-  const next = 30 - (days % 30);
-  return next === 30 ? 0 : next;
+  const nextDrop = 30 - (days % 30);
+  return nextDrop === 30 ? 0 : nextDrop;
 }
 
-// ─── Form ─────────────────────────────────────────────────────────────────────
+// ===================== FORM =====================
 function toggleForm() {
   const form = document.getElementById('addForm');
   form.classList.toggle('open');
-  if (form.classList.contains('open')) document.getElementById('fName').focus();
+  if (form.classList.contains('open')) {
+    document.getElementById('fName').focus();
+  }
 }
 
 function autoDetectBrandTier() {
@@ -350,254 +767,706 @@ function autoDetectBrandTier() {
   if (!brand) { preview.innerHTML = ''; return; }
   const override = getBrandStartingDiscount(brand);
   const premium = isPremium(brand);
-  const disc = override !== null ? override : (premium ? (settings.premiumDiscount||22) : (settings.standardDiscount||30));
+  const disc = override !== null ? override : (premium ? settings.premiumDiscount : settings.standardDiscount);
   const source = override !== null ? 'brand-specific rate' : (premium ? 'premium tier default' : 'standard tier default');
-  preview.innerHTML = `<span style="color:${premium?'#92400e':'#0369a1'}">${premium?'⭐ Premium':'◆ Standard'} — starts at <strong>${disc}% off</strong> list <span style="color:#aaa;font-size:11px;">(${source})</span></span>`;
+  preview.innerHTML = `<span style="color:${premium ? '#92400e' : '#0369a1'}">
+    ${premium ? '⭐ Premium brand' : '◆ Standard brand'} — starts at <strong>${disc}% off</strong> list price <span style="color:#aaa;font-size:11px;">(${source})</span>
+  </span>`;
 }
 
 function addItem() {
   const name = document.getElementById('fName').value.trim();
   const brand = document.getElementById('fBrand').value.trim();
   const model = document.getElementById('fModel').value.trim();
-  const list_price = parseFloat(document.getElementById('fPrice').value);
+  const price = parseFloat(document.getElementById('fPrice').value);
   const cost = parseFloat(document.getElementById('fCost').value);
   const date = document.getElementById('fDate').value;
-  if (!name || !brand || !list_price || !date) { showToast('Please fill in all required fields'); return; }
+
+  if (!name || !brand || !price || !date) {
+    showToast('Please fill in all required fields');
+    return;
+  }
+
   const item = {
-    id: Date.now().toString(), name, brand, model,
-    list_price, cost: isNaN(cost) ? null : cost,
-    date, added_at: new Date().toISOString()
+    id: Date.now().toString(),
+    name, brand, model,
+    listPrice: price,
+    cost: isNaN(cost) ? null : cost,
+    date,
+    addedAt: new Date().toISOString()
   };
-  items.unshift(item);
-  localStorage.setItem(LS_ITEMS, JSON.stringify(items));
-  renderTable(); updateStats();
-  ['fName','fBrand','fModel','fPrice','fCost'].forEach(id => document.getElementById(id).value = '');
+
+  items.push(item);
+  saveItems();
+  renderTable();
+  updateStats();
+
+  // Reset form
+  document.getElementById('fName').value = '';
+  document.getElementById('fBrand').value = '';
+  document.getElementById('fModel').value = '';
+  document.getElementById('fPrice').value = '';
+  document.getElementById('fCost').value = '';
   document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
   document.getElementById('brandTierPreview').innerHTML = '';
-  showToast(`${name} added`);
+
+  showToast(`${name} added to clearance`);
 }
 
-// ─── Stats ────────────────────────────────────────────────────────────────────
+// ===================== SAVE =====================
+function saveItems() {
+  localStorage.setItem(LS_ITEMS, JSON.stringify(items));
+}
+
+// ===================== STATS =====================
 function updateStats() {
-  const listVal = items.reduce((s, i) => s + i.list_price, 0);
+  const total = items.length;
+  const listVal = items.reduce((s, i) => s + i.listPrice, 0);
   const currVal = items.reduce((s, i) => s + calcPrice(i), 0);
   const droppingSoon = items.filter(i => daysUntilNextDrop(i) <= 7).length;
   const atCost = items.filter(i => i.cost != null && calcPrice(i) <= i.cost).length;
-  document.getElementById('statTotal').textContent = items.length;
-  document.getElementById('statListValue').textContent = '$' + listVal.toLocaleString('en-US', {maximumFractionDigits:0});
-  document.getElementById('statCurrentValue').textContent = '$' + currVal.toLocaleString('en-US', {maximumFractionDigits:0});
+
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statListValue').textContent = '$' + listVal.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  document.getElementById('statCurrentValue').textContent = '$' + currVal.toLocaleString('en-US', { maximumFractionDigits: 0 });
   document.getElementById('statDropping').textContent = droppingSoon;
   document.getElementById('statAtCost').textContent = atCost;
-  document.getElementById('statAtCostCard').classList.toggle('alert', atCost > 0);
+  const card = document.getElementById('statAtCostCard');
+  card.classList.toggle('alert', atCost > 0);
 }
 
-// ─── Table ────────────────────────────────────────────────────────────────────
+// ===================== TABLE =====================
 function renderTable() {
   const search = document.getElementById('searchInput').value.toLowerCase();
   const filterBrand = document.getElementById('filterBrand').value;
   const sort = document.getElementById('filterSort').value;
+
   let filtered = items.filter(item => {
-    const ms = !search || item.name.toLowerCase().includes(search) || item.brand.toLowerCase().includes(search) || (item.model||'').toLowerCase().includes(search);
-    const mb = !filterBrand
-      || (filterBrand==='premium' && isPremium(item.brand))
-      || (filterBrand==='standard' && !isPremium(item.brand))
-      || (filterBrand==='atcost' && item.cost!=null && calcPrice(item)<=item.cost);
-    return ms && mb;
+    const matchSearch = !search ||
+      item.name.toLowerCase().includes(search) ||
+      item.brand.toLowerCase().includes(search) ||
+      (item.model || '').toLowerCase().includes(search);
+    const matchBrand = !filterBrand ||
+      (filterBrand === 'premium' && isPremium(item.brand)) ||
+      (filterBrand === 'standard' && !isPremium(item.brand)) ||
+      (filterBrand === 'atcost' && item.cost != null && calcPrice(item) <= item.cost);
+    return matchSearch && matchBrand;
   });
-  filtered.sort((a,b) => {
-    if (sort==='date_desc') return new Date(b.date)-new Date(a.date);
-    if (sort==='date_asc') return new Date(a.date)-new Date(b.date);
-    if (sort==='price_desc') return calcPrice(b)-calcPrice(a);
-    if (sort==='price_asc') return calcPrice(a)-calcPrice(b);
-    if (sort==='discount_desc') return calcDiscount(b)-calcDiscount(a);
-    if (sort==='drop_soon') return daysUntilNextDrop(a)-daysUntilNextDrop(b);
+
+  filtered.sort((a, b) => {
+    if (sort === 'date_desc') return new Date(b.date) - new Date(a.date);
+    if (sort === 'date_asc') return new Date(a.date) - new Date(b.date);
+    if (sort === 'price_desc') return calcPrice(b) - calcPrice(a);
+    if (sort === 'price_asc') return calcPrice(a) - calcPrice(b);
+    if (sort === 'discount_desc') return calcDiscount(b) - calcDiscount(a);
+    if (sort === 'drop_soon') return daysUntilNextDrop(a) - daysUntilNextDrop(b);
     return 0;
   });
-  document.getElementById('filterCount').textContent = filtered.length !== items.length ? `${filtered.length} of ${items.length} items` : `${items.length} items`;
+
+  document.getElementById('filterCount').textContent =
+    filtered.length !== items.length ? `${filtered.length} of ${items.length} items` : `${items.length} items`;
+
   const tbody = document.getElementById('tableBody');
   const empty = document.getElementById('emptyState');
-  if (filtered.length === 0) { tbody.innerHTML=''; empty.style.display='block'; return; }
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
   empty.style.display = 'none';
+
   tbody.innerHTML = filtered.map(item => {
-    const disc = calcDiscount(item), cp = calcPrice(item), days = daysSince(item.date);
-    const nextDrop = daysUntilNextDrop(item), premium = isPremium(item.brand);
-    const ageWidth = Math.min(days/180*100,100);
-    const barColor = days>90?'#ef4444':days>45?'#f59e0b':'#22c55e';
-    const discClass = disc>=50?'disc-high':disc>=35?'disc-mid':'disc-low';
-    const nextDropText = nextDrop===0?'<span class="next-drop soon">Drops today!</span>':nextDrop<=7?`<span class="next-drop soon">In ${nextDrop}d</span>`:`<span class="next-drop">In ${nextDrop}d</span>`;
-    let costCell = '<span style="color:#ccc;font-size:11px;">—</span>', atCostClass = '';
-    if (item.cost!=null) {
-      const margin = cp-item.cost, pct = (margin/item.cost*100).toFixed(0);
-      if (cp<=item.cost) { costCell=`<span class="cost-alert-badge">⚠ AT COST</span>`; atCostClass='at-cost-row'; }
-      else if (margin/item.cost<0.10) costCell=`<span class="near-cost-badge">Near cost</span>`;
-      else costCell=`<span style="font-size:12px;color:#16a34a;font-weight:600;">+$${margin.toLocaleString('en-US',{maximumFractionDigits:0})} (${pct}%)</span>`;
+    const disc = calcDiscount(item);
+    const currentPrice = calcPrice(item);
+    const days = daysSince(item.date);
+    const nextDrop = daysUntilNextDrop(item);
+    const premium = isPremium(item.brand);
+    const maxAge = 180;
+    const ageWidth = Math.min(days / maxAge * 100, 100);
+
+    let barColor = '#22c55e';
+    if (days > 90) barColor = '#ef4444';
+    else if (days > 45) barColor = '#f59e0b';
+
+    // Age gradient highlighting
+    // 30d repriced = yellow · 31–59d = light pink · 60d repriced = orange ·
+    // 61–89d = light orange · 90d+ repriced = red · past 90d = lavender
+    const repricedToday = days > 0 && days % 30 === 0;
+    let ageBg = '';
+    if (days >= 90) ageBg = repricedToday ? '#fca5a5' : '#e9d5ff';
+    else if (days >= 60) ageBg = repricedToday ? '#fdba74' : '#fed7aa';
+    else if (days >= 30) ageBg = repricedToday ? '#fef08a' : '#fce7f3';
+
+    let discClass = 'disc-low';
+    if (disc >= 50) discClass = 'disc-high';
+    else if (disc >= 35) discClass = 'disc-mid';
+
+    const nextDropText = nextDrop === 0
+      ? '<span class="next-drop soon">Drops today!</span>'
+      : nextDrop <= 7
+        ? `<span class="next-drop soon">In ${nextDrop}d</span>`
+        : `<span class="next-drop">In ${nextDrop}d</span>`;
+
+    // Cost status
+    let costCell = '<span style="color:#ccc;font-size:11px;">—</span>';
+    let atCostClass = '';
+    if (item.cost != null) {
+      const margin = currentPrice - item.cost;
+      const pct = ((margin / item.cost) * 100).toFixed(0);
+      if (currentPrice <= item.cost) {
+        costCell = `<span class="cost-alert-badge">⚠ AT COST</span>`;
+        atCostClass = 'at-cost-row';
+      } else if (margin / item.cost < 0.10) {
+        // Within 10% of cost
+        costCell = `<span class="near-cost-badge">Near cost</span>`;
+      } else {
+        costCell = `<span style="font-size:12px;color:#16a34a;font-weight:600;">+$${margin.toLocaleString('en-US',{maximumFractionDigits:0})} (${pct}%)</span>`;
+      }
     }
-    return `<tr onclick="showDetail('${item.id}')" class="${atCostClass}">
-      <td><div class="item-name">${esc(item.name)}</div>${item.model?`<div class="item-model">${esc(item.model)}</div>`:''}</td>
-      <td><span class="brand-badge ${premium?'badge-premium':'badge-standard'}">${esc(item.brand)}</span></td>
-      <td><span class="price-list">$${item.list_price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></td>
-      <td><span class="price-current">$${cp.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></td>
+
+    return `<tr onclick="showDetail('${item.id}')" style="cursor:pointer;${ageBg ? `background:${ageBg};` : ''}" class="${atCostClass}">
+      <td>
+        <div class="item-name">${esc(item.name)}</div>
+        ${item.model ? `<div class="item-model">${esc(item.model)}</div>` : ''}
+      </td>
+      <td>
+        <span class="brand-badge ${premium ? 'badge-premium' : 'badge-standard'}">${esc(item.brand)}</span>
+      </td>
+      <td><span class="price-list">$${item.listPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></td>
+      <td><span class="price-current">$${currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></td>
       <td><span class="discount-pill ${discClass}">${disc}% off</span></td>
-      <td><div class="age-bar-wrap"><div class="age-bar-bg"><div class="age-bar-fill" style="width:${ageWidth}%;background:${barColor};"></div></div><span class="age-days">${days}d</span></div></td>
+      <td>
+        <div class="age-bar-wrap">
+          <div class="age-bar-bg"><div class="age-bar-fill" style="width:${ageWidth}%;background:${barColor};"></div></div>
+          <span class="age-days">${days}d</span>
+        </div>
+      </td>
       <td>${nextDropText}</td>
       <td>${costCell}</td>
-      <td onclick="event.stopPropagation()"><button class="btn btn-ghost btn-small" onclick="showDetail('${item.id}')">View</button></td>
+      <td onclick="event.stopPropagation()">
+        <div class="actions-cell">
+          <button class="btn btn-ghost btn-small" onclick="showDetail('${item.id}')">View</button>
+        </div>
+      </td>
     </tr>`;
   }).join('');
 }
 
-// ─── Detail modal ─────────────────────────────────────────────────────────────
+// ===================== DETAIL MODAL =====================
 function showDetail(id) {
-  const item = items.find(i=>i.id===id); if (!item) return;
+  const item = items.find(i => i.id === id);
+  if (!item) return;
   currentModalId = id;
-  const disc = calcDiscount(item), cp = calcPrice(item), days = daysSince(item.date);
-  const nextDrop = daysUntilNextDrop(item), premium = isPremium(item.brand);
-  const saved = item.list_price - cp, isAtCost = item.cost!=null && cp<=item.cost;
-  const override = getBrandStartingDiscount(item.brand);
-  const start = override!==null ? override : (premium?(settings.premiumDiscount||22):(settings.standardDiscount||30));
+
+  const disc = calcDiscount(item);
+  const currentPrice = calcPrice(item);
+  const days = daysSince(item.date);
+  const nextDrop = daysUntilNextDrop(item);
+  const premium = isPremium(item.brand);
+  const saved = item.listPrice - currentPrice;
+  const start = premium ? settings.premiumDiscount : settings.standardDiscount;
+  const isAtCost = item.cost != null && currentPrice <= item.cost;
+
+  // Build pricing schedule
   let scheduleRows = '';
-  for (let p=0;p<=5;p++) {
-    const d = Math.min(start+p*(settings.agingDiscount||10),95);
-    const price = item.list_price*(1-d/100);
-    const isCurrent = days>=p*30 && days<(p+1)*30;
-    const hitsOrBelowCost = item.cost!=null && price<=item.cost;
-    const rowStyle = isCurrent?'background:#fef3c7;font-weight:600;':(hitsOrBelowCost?'background:#fee2e2;':'');
-    const costFlag = hitsOrBelowCost?` <span style="color:#dc2626;font-size:10px;font-weight:700;">⚠ AT COST</span>`:'';
-    scheduleRows+=`<tr style="${rowStyle}"><td>Days ${p*30}–${(p+1)*30-1}</td><td>${d}% off</td><td>$${price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}${costFlag}</td></tr>`;
+  for (let p = 0; p <= 5; p++) {
+    const d = Math.min(start + p * settings.agingDiscount, 95);
+    const price = item.listPrice * (1 - d / 100);
+    const dayStart = p * 30;
+    const dayEnd = (p + 1) * 30 - 1;
+    const isCurrent = days >= dayStart && days < dayStart + 30;
+    const hitsOrBelowCost = item.cost != null && price <= item.cost;
+    const rowStyle = isCurrent ? 'background:#fef3c7;font-weight:600;' : (hitsOrBelowCost ? 'background:#fee2e2;' : '');
+    const costFlag = hitsOrBelowCost ? ' <span style="color:#dc2626;font-size:10px;font-weight:700;">⚠ AT COST</span>' : '';
+    scheduleRows += `<tr style="${rowStyle}">
+      <td>Days ${dayStart}–${dayEnd}</td>
+      <td>${d}% off</td>
+      <td>$${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${costFlag}</td>
+    </tr>`;
   }
-  const costSection = `<div class="modal-label" style="margin-top:6px;">Your Cost</div>
+
+  // Cost section
+  const costSection = `
+    <div class="modal-label" style="margin-top:6px;">Your Cost</div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-      <input type="number" id="modalCostInput" value="${item.cost!=null?item.cost:''}" placeholder="Enter cost…" style="padding:6px 10px;border:1px solid #ddd;border-radius:5px;font-size:13px;width:130px;">
+      <input type="number" id="modalCostInput" value="${item.cost != null ? item.cost : ''}" placeholder="Enter cost…"
+        style="padding:6px 10px;border:1px solid #ddd;border-radius:5px;font-size:13px;width:130px;">
       <button class="btn btn-ghost btn-small" onclick="saveCost('${item.id}')">Save</button>
+      ${item.cost != null ? `<span style="font-size:12px;color:#888;">= $${item.cost.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>` : ''}
     </div>
-    ${isAtCost?`<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#991b1b;font-weight:600;">⚠️ Price is at or below your cost</div>`:''}`;
+    ${isAtCost ? `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#991b1b;font-weight:600;">
+      ⚠️ Clearance price ($${currentPrice.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}) is at or below your cost ($${item.cost.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})})
+    </div>` : (item.cost != null && (currentPrice - item.cost) / item.cost < 0.10 ? `<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:#92400e;">
+      ⚠ Within 10% of cost — watch this one
+    </div>` : '')}
+  `;
+
   document.getElementById('modalTitle').textContent = item.name;
   document.getElementById('modalBody').innerHTML = `
     <div class="modal-label">Brand</div>
-    <div class="modal-value">${esc(item.brand)} <span class="brand-badge ${premium?'badge-premium':'badge-standard'}" style="margin-left:6px;">${premium?'Premium':'Standard'}</span></div>
-    ${item.model?`<div class="modal-label">Model</div><div class="modal-value">${esc(item.model)}</div>`:''}
-    <div class="modal-label">List Price</div><div class="modal-value">$${item.list_price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+    <div class="modal-value">
+      ${esc(item.brand)}
+      <span class="brand-badge ${premium ? 'badge-premium' : 'badge-standard'}" style="margin-left:6px;">${premium ? 'Premium' : 'Standard'}</span>
+    </div>
+    ${item.model ? `<div class="modal-label">Model</div><div class="modal-value">${esc(item.model)}</div>` : ''}
+    <div class="modal-label">List Price</div>
+    <div class="modal-value">$${item.listPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
     <div class="modal-label">Current Price</div>
-    <div class="modal-price">$${cp.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} <span style="font-size:16px;color:#666;">(${disc}% off — saving $${saved.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})})</span></div>
-    <div style="font-size:12px;color:${nextDrop<=7?'#b85c30':'#888'};margin-bottom:12px;">${nextDrop===0?'⚠️ Price drops today!':`Next drop in ${nextDrop} day${nextDrop!==1?'s':''}`} (Day ${days})</div>
+    <div class="modal-price">$${currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style="font-size:16px;color:#666;">(${disc}% off — saving $${saved.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span></div>
+    <div style="font-size:12px;color:${nextDrop <= 7 ? '#e85d26' : '#888'};margin-bottom:12px;">
+      ${nextDrop === 0 ? '⚠️ Price drops today!' : `Next price drop in ${nextDrop} day${nextDrop !== 1 ? 's' : ''}`} (Day ${days} on clearance)
+    </div>
     ${costSection}
     <div class="modal-label" style="margin-bottom:6px;">Pricing Schedule</div>
-    <table class="modal-table"><thead><tr style="font-size:11px;color:#888;"><td>Period</td><td>Discount</td><td>Price</td></tr></thead><tbody>${scheduleRows}</tbody></table>`;
+    <table class="modal-table">
+      <thead><tr style="font-size:11px;color:#888;"><td>Period</td><td>Discount</td><td>Price</td></tr></thead>
+      <tbody>${scheduleRows}</tbody>
+    </table>
+  `;
+
   document.getElementById('modalDeleteBtn').onclick = () => deleteItem(id);
   document.getElementById('detailModal').classList.add('open');
 }
 
-function closeModal() { document.getElementById('detailModal').classList.remove('open'); currentModalId=null; }
+function closeModal() {
+  document.getElementById('detailModal').classList.remove('open');
+  currentModalId = null;
+}
 
 function saveCost(id) {
-  const item = items.find(i=>i.id===id); if (!item) return;
+  const item = items.find(i => i.id === id);
+  if (!item) return;
   const val = parseFloat(document.getElementById('modalCostInput').value);
-  item.cost = isNaN(val)?null:val;
-  localStorage.setItem(LS_ITEMS, JSON.stringify(items));
-  renderTable(); updateStats();
+  item.cost = isNaN(val) ? null : val;
+  saveItems();
+  renderTable();
+  updateStats();
   showToast('Cost saved');
-  showDetail(id);
+  showDetail(id); // refresh modal
 }
 
 function deleteItem(id) {
-  const item = items.find(i=>i.id===id); if (!item) return;
-  if (!confirm(`Remove "${item.name}"?`)) return;
-  items = items.filter(i=>i.id!==id);
-  localStorage.setItem(LS_ITEMS, JSON.stringify(items));
-  renderTable(); updateStats(); closeModal();
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  if (!confirm(`Remove "${item.name}" from clearance tracker?`)) return;
+  items = items.filter(i => i.id !== id);
+  saveItems();
+  renderTable();
+  updateStats();
+  closeModal();
   showToast(`${item.name} removed`);
 }
 
-// ─── Brand overrides UI ───────────────────────────────────────────────────────
+// ===================== UTILS =====================
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Close modal on overlay click
+document.getElementById('detailModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// Enter key on brand add input
+document.getElementById('addBrandInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') addPremiumBrand();
+});
+
+// ===================== EXPORT =====================
+function exportCSV() {
+  if (items.length === 0) { showToast('No items to export'); return; }
+  const headers = ['Item Name','Brand','Model','List Price','Your Cost','Date Added','Days on Clearance','Starting Discount %','Current Discount %','Current Price','Next Price Drop (days)'];
+  const rows = items.map(item => {
+    const disc = calcDiscount(item);
+    const currentPrice = calcPrice(item);
+    const days = daysSince(item.date);
+    const nextDrop = daysUntilNextDrop(item);
+    const override = getBrandStartingDiscount(item.brand);
+    const startDisc = override !== null ? override : (isPremium(item.brand) ? settings.premiumDiscount : settings.standardDiscount);
+    return [
+      item.name, item.brand, item.model || '',
+      item.listPrice.toFixed(2),
+      item.cost != null ? item.cost.toFixed(2) : '',
+      item.date, days, startDisc, disc,
+      currentPrice.toFixed(2), nextDrop
+    ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
+  });
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `clearance-items-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`Exported ${items.length} items`);
+}
+
+// ===================== BRAND OVERRIDES UI =====================
+// Deduplicate overrides: keep only canonical (first casing) per brand
 function getCanonicalOverrides() {
   const overrides = settings.brandOverrides || {};
   const seen = {};
-  for (const [k,v] of Object.entries(overrides)) { const kl=k.toLowerCase().trim(); if (!seen[kl]) seen[kl]={key:k,value:v}; }
-  return Object.values(seen).sort((a,b)=>a.key.localeCompare(b.key));
+  for (const [k, v] of Object.entries(overrides)) {
+    const kl = k.toLowerCase().trim();
+    if (!seen[kl]) seen[kl] = { key: k, value: v };
+  }
+  return Object.values(seen).sort((a, b) => a.key.localeCompare(b.key));
 }
 
 function renderBrandOverridesTable() {
-  const container = document.getElementById('brandOverridesTable'); if (!container) return;
+  const container = document.getElementById('brandOverridesTable');
+  if (!container) return;
   const canonical = getCanonicalOverrides();
-  if (canonical.length===0) { container.innerHTML='<div style="color:#aaa;font-size:12px;padding:8px 0;">No overrides set.</div>'; return; }
+  if (canonical.length === 0) {
+    container.innerHTML = '<div style="color:#aaa;font-size:12px;padding:8px 0;">No brand overrides set.</div>';
+    return;
+  }
+
+  // Group by tier
+  const tier1 = canonical.filter(o => o.value <= 17);
+  const tier2 = canonical.filter(o => o.value > 17 && o.value <= 24);
+  const tier3 = canonical.filter(o => o.value > 24 && o.value <= 32);
+  const tier4 = canonical.filter(o => o.value > 32);
+
   const groups = [
-    {label:'Top tier (≤17% off)',color:'#16a34a',items:canonical.filter(o=>o.value<=17)},
-    {label:'Premium (18–24% off)',color:'#0369a1',items:canonical.filter(o=>o.value>17&&o.value<=24)},
-    {label:'Mid premium (25–32% off)',color:'#7c3aed',items:canonical.filter(o=>o.value>24&&o.value<=32)},
-    {label:'Standard+ (>32% off)',color:'#d97706',items:canonical.filter(o=>o.value>32)},
+    { label: 'Top tier (≤17% off)', color: '#16a34a', items: tier1 },
+    { label: 'Premium (18–24% off)', color: '#0369a1', items: tier2 },
+    { label: 'Mid premium (25–32% off)', color: '#7c3aed', items: tier3 },
+    { label: 'Standard+ (>32% off)', color: '#d97706', items: tier4 },
   ];
-  let html='<table class="overrides-table"><thead><tr><th>Brand</th><th>Starting %</th><th>Schedule (30-day drops)</th><th></th></tr></thead><tbody>';
+
+  let html = '<table class="overrides-table"><thead><tr><th>Brand</th><th>Starting %</th><th>Schedule (30-day drops)</th><th></th></tr></thead><tbody>';
   for (const group of groups) {
-    if (!group.items.length) continue;
-    html+=`<tr><td colspan="4" style="background:#f8f8f8;padding:6px 10px;font-size:11px;color:${group.color};font-weight:700;text-transform:uppercase;">${group.label}</td></tr>`;
+    if (group.items.length === 0) continue;
+    html += `<tr><td colspan="4" style="background:#f8f8f8;padding:6px 10px;font-size:11px;color:${group.color};font-weight:700;text-transform:uppercase;letter-spacing:.5px;">${group.label}</td></tr>`;
     for (const o of group.items) {
-      const aging=settings.agingDiscount||10;
-      const schedule=[0,1,2,3].map(p=>`<span style="background:#f0f0f0;padding:1px 5px;border-radius:3px;margin-right:2px;">${Math.min(o.value+p*aging,95)}%</span>`).join('→');
-      html+=`<tr><td><span class="tier-dot" style="background:${group.color}"></span>${esc(o.key)}</td>
-        <td><input type="number" value="${o.value}" min="0" max="90" onchange="updateBrandOverride('${esc(o.key)}',this.value)" style="width:55px;padding:3px 6px;border:1px solid #ddd;border-radius:4px;font-size:12px;"> <span style="color:#888;font-size:11px;">% off</span></td>
+      const aging = settings.agingDiscount || 10;
+      const schedule = [0,1,2,3].map(p => {
+        const d = Math.min(o.value + p * aging, 95);
+        return `<span style="background:#f0f0f0;padding:1px 5px;border-radius:3px;margin-right:2px;">${d}%</span>`;
+      }).join('→');
+      html += `<tr>
+        <td><span class="tier-dot" style="background:${group.color}"></span>${esc(o.key)}</td>
+        <td>
+          <input type="number" value="${o.value}" min="0" max="90"
+            onchange="updateBrandOverride('${esc(o.key)}', this.value)"
+            style="width:55px;padding:3px 6px;border:1px solid #ddd;border-radius:4px;font-size:12px;">
+          <span style="color:#888;font-size:11px;">% off</span>
+        </td>
         <td style="font-size:11px;">${schedule}</td>
-        <td><span style="cursor:pointer;color:#dc2626;font-size:14px;" onclick="removeBrandOverride('${esc(o.key)}')">×</span></td></tr>`;
+        <td><span style="cursor:pointer;color:#dc2626;font-size:14px;" onclick="removeBrandOverride('${esc(o.key)}')">×</span></td>
+      </tr>`;
     }
   }
-  html+='</tbody></table>';
-  container.innerHTML=html;
+  html += '</tbody></table>';
+  container.innerHTML = html;
 }
 
 function addBrandOverride() {
-  const brand=document.getElementById('addOverrideBrand').value.trim();
-  const disc=parseInt(document.getElementById('addOverrideDisc').value);
-  if (!brand||isNaN(disc)) { showToast('Enter brand name and %'); return; }
-  if (!settings.brandOverrides) settings.brandOverrides={};
-  settings.brandOverrides[brand]=disc;
+  const brand = document.getElementById('addOverrideBrand').value.trim();
+  const disc = parseInt(document.getElementById('addOverrideDisc').value);
+  if (!brand || isNaN(disc)) { showToast('Enter brand name and %'); return; }
+  if (!settings.brandOverrides) settings.brandOverrides = {};
+  settings.brandOverrides[brand] = disc;
   localStorage.setItem(LS_SETTINGS, JSON.stringify(settings));
-  renderBrandOverridesTable(); renderTable(); updateStats();
-  document.getElementById('addOverrideBrand').value=''; document.getElementById('addOverrideDisc').value='';
+  renderBrandOverridesTable();
+  renderTable();
+  updateStats();
+  document.getElementById('addOverrideBrand').value = '';
+  document.getElementById('addOverrideDisc').value = '';
   showToast(`${brand} set to ${disc}% off list`);
 }
 
 function updateBrandOverride(brand, val) {
-  const disc=parseInt(val); if (isNaN(disc)) return;
-  if (!settings.brandOverrides) settings.brandOverrides={};
-  for (const k of Object.keys(settings.brandOverrides)) { if (k.toLowerCase().trim()===brand.toLowerCase().trim()) settings.brandOverrides[k]=disc; }
+  const disc = parseInt(val);
+  if (isNaN(disc)) return;
+  if (!settings.brandOverrides) settings.brandOverrides = {};
+  // Update all variants of this brand name
+  for (const k of Object.keys(settings.brandOverrides)) {
+    if (k.toLowerCase().trim() === brand.toLowerCase().trim()) {
+      settings.brandOverrides[k] = disc;
+    }
+  }
   localStorage.setItem(LS_SETTINGS, JSON.stringify(settings));
-  renderBrandOverridesTable(); renderTable(); updateStats();
-  showToast(`${brand} → ${disc}% off`);
+  renderBrandOverridesTable();
+  renderTable();
+  updateStats();
+  showToast(`${brand} updated to ${disc}% off`);
 }
 
 function removeBrandOverride(brand) {
   if (!settings.brandOverrides) return;
-  for (const k of Object.keys(settings.brandOverrides)) { if (k.toLowerCase().trim()===brand.toLowerCase().trim()) delete settings.brandOverrides[k]; }
+  for (const k of Object.keys(settings.brandOverrides)) {
+    if (k.toLowerCase().trim() === brand.toLowerCase().trim()) {
+      delete settings.brandOverrides[k];
+    }
+  }
   localStorage.setItem(LS_SETTINGS, JSON.stringify(settings));
-  renderBrandOverridesTable(); renderTable(); updateStats();
+  renderBrandOverridesTable();
+  renderTable();
+  updateStats();
   showToast(`${brand} override removed`);
 }
 
-// ─── Export ───────────────────────────────────────────────────────────────────
-function exportCSV() {
-  if (!items.length) { showToast('No items to export'); return; }
-  const headers=['Item Name','Brand','Model','List Price','Your Cost','Date Added','Days on Clearance','Starting Discount %','Current Discount %','Current Price','Next Price Drop (days)'];
-  const rows=items.map(item=>{
-    const disc=calcDiscount(item), cp=calcPrice(item), days=daysSince(item.date), nextDrop=daysUntilNextDrop(item);
-    const override=getBrandStartingDiscount(item.brand);
-    const startDisc=override!==null?override:(isPremium(item.brand)?(settings.premiumDiscount||22):(settings.standardDiscount||30));
-    return [item.name,item.brand,item.model||'',item.list_price.toFixed(2),item.cost!=null?item.cost.toFixed(2):'',item.date,days,startDisc,disc,cp.toFixed(2),nextDrop].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',');
-  });
-  const csv=[headers.join(','),...rows].join('\n');
-  const a=document.createElement('a');
-  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-  a.download=`clearance-items-${new Date().toISOString().split('T')[0]}.csv`;
-  a.click();
-  showToast(`Exported ${items.length} items`);
+// ===================== CSV IMPORT =====================
+let importRows = [];
+
+function openImportModal() {
+  importRows = [];
+  document.getElementById('importPaste').value = '';
+  document.getElementById('importFile').value = '';
+  document.getElementById('importPreview').innerHTML = '';
+  document.getElementById('importConfirmBtn').disabled = true;
+  document.getElementById('importConfirmBtn').textContent = 'Import';
+  document.getElementById('importModal').classList.add('open');
 }
 
-// ─── Utils ────────────────────────────────────────────────────────────────────
-function esc(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function showToast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
-document.getElementById('detailModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
-document.getElementById('addBrandInput').addEventListener('keydown', function(e) { if(e.key==='Enter') addPremiumBrand(); });
-// Hide hub link when inside iframe
-if (window.self !== window.top) { const l=document.getElementById('hubLink'); if(l) l.style.display='none'; }
+function closeImportModal() {
+  document.getElementById('importModal').classList.remove('open');
+}
+
+function handleImportFile(files) {
+  if (!files || !files.length) return;
+  const reader = new FileReader();
+  reader.onload = e => parseImportText(e.target.result);
+  reader.readAsText(files[0]);
+}
+
+// RFC-4180-ish CSV parser (handles quoted fields, embedded commas/newlines)
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i + 1] === '\n') i++;
+        row.push(field); field = '';
+        if (row.some(f => f.trim() !== '')) rows.push(row);
+        row = [];
+      } else field += c;
+    }
+  }
+  row.push(field);
+  if (row.some(f => f.trim() !== '')) rows.push(row);
+  return rows;
+}
+
+const IMPORT_HEADER_MAP = {
+  name: ['itemname', 'item', 'name', 'product', 'description'],
+  brand: ['brand', 'manufacturer', 'make'],
+  model: ['model', 'modelsku', 'sku', 'modelnumber', 'modelno'],
+  listPrice: ['listprice', 'price', 'msrp', 'retail', 'retailprice', 'list'],
+  cost: ['yourcost', 'cost', 'unitcost', 'dealercost', 'mycost'],
+  date: ['dateadded', 'date', 'dateaddedtoclearance', 'clearancedate', 'added'],
+};
+
+function normalizeHeader(h) {
+  return String(h).toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function mapHeaders(headerRow) {
+  const idx = {};
+  headerRow.forEach((h, i) => {
+    const nh = normalizeHeader(h);
+    for (const [field, aliases] of Object.entries(IMPORT_HEADER_MAP)) {
+      if (idx[field] === undefined && aliases.includes(nh)) idx[field] = i;
+    }
+  });
+  return idx;
+}
+
+function parseMoney(v) {
+  if (v == null || String(v).trim() === '') return null;
+  const n = parseFloat(String(v).replace(/[$,\s]/g, ''));
+  return isNaN(n) ? null : n;
+}
+
+function normalizeImportDate(v) {
+  const s = String(v || '').trim();
+  if (!s) return new Date().toISOString().split('T')[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    return isNaN(new Date(s + 'T00:00:00')) ? null : s;
+  }
+  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (m) {
+    let [, mo, d, y] = m;
+    if (y.length === 2) y = '20' + y;
+    const iso = `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    return isNaN(new Date(iso + 'T00:00:00')) ? null : iso;
+  }
+  const dt = new Date(s);
+  return isNaN(dt) ? null : dt.toISOString().split('T')[0];
+}
+
+function isDuplicateItem(name, brand, model) {
+  return items.some(it => {
+    if (model && it.model && it.model.toLowerCase().trim() === model.toLowerCase().trim()) return true;
+    return it.name.toLowerCase().trim() === name.toLowerCase().trim() &&
+           it.brand.toLowerCase().trim() === brand.toLowerCase().trim();
+  });
+}
+
+function parseImportText(text) {
+  importRows = [];
+  const preview = document.getElementById('importPreview');
+  const btn = document.getElementById('importConfirmBtn');
+  if (!text || !text.trim()) { preview.innerHTML = ''; btn.disabled = true; return; }
+
+  const rows = parseCSV(text);
+  if (rows.length < 2) {
+    preview.innerHTML = '<div style="color:#dc2626;font-size:12px;margin-top:10px;">Need a header row plus at least one data row.</div>';
+    btn.disabled = true;
+    return;
+  }
+
+  const idx = mapHeaders(rows[0]);
+  const missing = ['name', 'brand', 'listPrice'].filter(f => idx[f] === undefined);
+  if (missing.length) {
+    const labels = { name: 'Item Name', brand: 'Brand', listPrice: 'List Price' };
+    preview.innerHTML = `<div style="color:#dc2626;font-size:12px;margin-top:10px;">Couldn't find required column(s): <strong>${missing.map(f => labels[f]).join(', ')}</strong>. Check the header row.</div>`;
+    btn.disabled = true;
+    return;
+  }
+
+  const seenInFile = new Set();
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    const get = f => idx[f] !== undefined ? String(row[idx[f]] || '').trim() : '';
+    const name = get('name');
+    const brand = get('brand');
+    const model = get('model');
+    const listPrice = parseMoney(get('listPrice'));
+    const cost = parseMoney(get('cost'));
+    const date = normalizeImportDate(get('date'));
+
+    let status = 'ok', reason = '';
+    if (!name) { status = 'error'; reason = 'Missing item name'; }
+    else if (!brand) { status = 'error'; reason = 'Missing brand'; }
+    else if (listPrice === null || listPrice <= 0) { status = 'error'; reason = 'Invalid list price'; }
+    else if (date === null) { status = 'error'; reason = 'Invalid date'; }
+    else {
+      const key = (model || name + '|' + brand).toLowerCase().trim();
+      if (isDuplicateItem(name, brand, model)) { status = 'dup'; reason = 'Already in tracker'; }
+      else if (seenInFile.has(key)) { status = 'dup'; reason = 'Duplicate row in file'; }
+      else seenInFile.add(key);
+    }
+    importRows.push({ name, brand, model, listPrice, cost, date, status, reason });
+  }
+  renderImportPreview();
+}
+
+function renderImportPreview() {
+  const preview = document.getElementById('importPreview');
+  const btn = document.getElementById('importConfirmBtn');
+  const ok = importRows.filter(r => r.status === 'ok').length;
+  const dup = importRows.filter(r => r.status === 'dup').length;
+  const err = importRows.filter(r => r.status === 'error').length;
+
+  const rowsHtml = importRows.slice(0, 200).map(r => {
+    const cls = r.status === 'ok' ? 'import-row-ok' : r.status === 'dup' ? 'import-row-dup' : 'import-row-error';
+    const statusTxt = r.status === 'ok' ? '✓ Ready' : r.status === 'dup' ? '⊘ Skip — ' + r.reason : '✕ ' + r.reason;
+    return `<tr class="${cls}">
+      <td>${statusTxt}</td>
+      <td>${esc(r.name) || '—'}</td>
+      <td>${esc(r.brand) || '—'}</td>
+      <td>${esc(r.model) || '—'}</td>
+      <td>${r.listPrice != null ? '$' + r.listPrice.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '—'}</td>
+      <td>${r.cost != null ? '$' + r.cost.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '—'}</td>
+      <td>${r.date || '—'}</td>
+    </tr>`;
+  }).join('');
+
+  preview.innerHTML = `
+    <div class="import-summary">
+      <span style="color:#16a34a;">✓ ${ok} ready</span>
+      ${dup ? `<span style="color:#d97706;">⊘ ${dup} duplicate${dup !== 1 ? 's' : ''} (skipped)</span>` : ''}
+      ${err ? `<span style="color:#dc2626;">✕ ${err} error${err !== 1 ? 's' : ''} (skipped)</span>` : ''}
+      ${importRows.length > 200 ? `<span style="color:#888;">showing first 200 of ${importRows.length} rows</span>` : ''}
+    </div>
+    <div class="import-preview-wrap">
+      <table class="import-preview-table">
+        <thead><tr><th>Status</th><th>Item</th><th>Brand</th><th>Model</th><th>List Price</th><th>Cost</th><th>Date</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
+
+  btn.disabled = ok === 0;
+  btn.textContent = ok > 0 ? `Import ${ok} item${ok !== 1 ? 's' : ''}` : 'Import';
+}
+
+function confirmImport() {
+  const ready = importRows.filter(r => r.status === 'ok');
+  if (!ready.length) return;
+  const now = Date.now();
+  ready.forEach((r, i) => {
+    items.push({
+      id: (now + i).toString(),
+      name: r.name,
+      brand: r.brand,
+      model: r.model || '',
+      listPrice: r.listPrice,
+      cost: r.cost != null ? r.cost : null,
+      date: r.date,
+      addedAt: new Date().toISOString()
+    });
+  });
+  saveItems();
+  renderTable();
+  updateStats();
+  closeImportModal();
+  showToast(`Imported ${ready.length} item${ready.length !== 1 ? 's' : ''}`);
+}
+
+function downloadImportTemplate() {
+  const csv = 'Item Name,Brand,Model,List Price,Your Cost,Date Added\n"Refrigerator 36""","Sub-Zero","BI-36UFD",11999.00,7800.00,2026-05-01\n"Dishwasher 24""","Whirlpool","WDT750SAKZ",849.00,520.00,';
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'clearance-import-template.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Drag & drop onto the import zone
+(function () {
+  const drop = document.getElementById('importDrop');
+  ['dragover', 'dragenter'].forEach(ev => drop.addEventListener(ev, e => {
+    e.preventDefault();
+    drop.classList.add('dragover');
+  }));
+  ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => {
+    e.preventDefault();
+    drop.classList.remove('dragover');
+  }));
+  drop.addEventListener('drop', e => handleImportFile(e.dataTransfer.files));
+})();
+
+// Close import modal on overlay click
+document.getElementById('importModal').addEventListener('click', function (e) {
+  if (e.target === this) closeImportModal();
+});
+
+// ===================== START =====================
 init();
+
 </script>
 </body>
 </html>
