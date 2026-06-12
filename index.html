@@ -1,11 +1,4 @@
 <!DOCTYPE html>
-<script type="application/json" id="cowork-artifact-meta">
-{
-  "name": "Clearance Price Tracker",
-  "schemaVersion": 1,
-  "description": "Clearance item tracker with brand-tiered starting discounts, automatic 10% price drops every 30 days, and bulk CSV import. Persists across sessions."
-}
-</script>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -32,7 +25,7 @@
     justify-content: space-between;
     gap: 12px;
   }
-  .logo { display: flex; align-items: center; gap: 10px; font-family: 'Times New Roman', Times, serif; }
+  .logo { display: flex; align-items: center; gap: 10px; }
   .logo-mark {
     width: 30px; height: 30px;
     background: #e85d26;
@@ -68,6 +61,22 @@
 
   .main { padding: 20px; max-width: 1400px; margin: 0 auto; }
 
+  /* Banners */
+  .banner {
+    padding: 10px 16px;
+    font-size: 13px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .banner.show { display: block; }
+  .banner-warn { background: #fef3c7; border: 1px solid #f59e0b; color: #92400e; }
+  .banner-error { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; }
+  .banner-info { background: #e0f2fe; border: 1px solid #7dd3fc; color: #0369a1; }
+
+  /* View-only mode hides editing controls */
+  .view-only .edit-only { display: none !important; }
+
   /* Stats bar */
   .stats-bar {
     display: grid;
@@ -84,6 +93,8 @@
   .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 4px; }
   .stat-value { font-size: 22px; font-weight: 700; color: #1a1a2e; }
   .stat-sub { font-size: 11px; color: #888; margin-top: 2px; }
+  .stat-card.alert { border-color: #fca5a5; background: #fff5f5; }
+  .stat-card.alert .stat-value { color: #dc2626; }
 
   /* Settings panel */
   .settings-panel {
@@ -215,8 +226,6 @@
     white-space: nowrap;
   }
   thead th:hover { background: #efefef; color: #333; }
-  thead th .sort-icon { margin-left: 4px; opacity: 0.4; }
-  thead th.sorted .sort-icon { opacity: 1; }
   tbody tr { border-bottom: 1px solid #f0f0f0; transition: background 0.1s; }
   tbody tr:last-child { border-bottom: none; }
   tbody tr:hover { background: #fafafa; }
@@ -283,8 +292,6 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.7; }
   }
-  .stat-card.alert { border-color: #fca5a5; background: #fff5f5; }
-  .stat-card.alert .stat-value { color: #dc2626; }
 
   .empty-state {
     text-align: center;
@@ -311,6 +318,8 @@
     width: 460px;
     max-width: 95vw;
     box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    max-height: 90vh;
+    overflow-y: auto;
   }
   .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
   .modal-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -380,7 +389,7 @@
   }
 </style>
 </head>
-<body>
+<body class="view-only">
 
 <div class="header">
   <div class="logo">
@@ -388,14 +397,22 @@
     <h1>Clearance <span class="logo-accent">Price Tracker</span></h1>
   </div>
   <div class="header-right">
-    <button class="btn btn-secondary btn-small" onclick="openImportModal()">⬆ Import CSV</button>
+    <button class="btn btn-secondary btn-small" id="unlockBtn" onclick="toggleUnlock()">🔒 Unlock editing</button>
+    <button class="btn btn-secondary btn-small edit-only" onclick="openImportModal()">⬆ Import CSV</button>
     <button class="btn btn-secondary btn-small" onclick="exportCSV()">⬇ Export CSV</button>
-    <button class="btn btn-secondary btn-small" onclick="toggleSettings()">⚙️ Settings</button>
-    <button class="btn btn-primary" onclick="toggleForm()">+ Add Item</button>
+    <button class="btn btn-secondary btn-small edit-only" onclick="toggleSettings()">⚙️ Settings</button>
+    <button class="btn btn-primary edit-only" onclick="toggleForm()">+ Add Item</button>
   </div>
 </div>
 
 <div class="main">
+
+  <div class="banner banner-warn" id="configBanner">
+    ⚠️ <strong>Not connected to a database yet.</strong> Running in local demo mode (data stays in this browser only).
+    Follow the setup instructions to connect Supabase, then paste your project URL and key into this file.
+  </div>
+  <div class="banner banner-error" id="errorBanner"></div>
+  <div class="banner banner-info" id="loadingBanner">Loading live data…</div>
 
   <!-- Stats -->
   <div class="stats-bar" id="statsBar">
@@ -553,7 +570,7 @@
     </table>
     <div class="empty-state" id="emptyState" style="display:none;">
       <div class="icon">🏷️</div>
-      <p>No clearance items yet. Click <strong>+ Add Item</strong> to get started.</p>
+      <p>No clearance items yet.</p>
     </div>
   </div>
 </div>
@@ -564,7 +581,7 @@
     <h3 id="modalTitle">Item Detail</h3>
     <div id="modalBody"></div>
     <div class="modal-actions">
-      <button class="btn btn-danger btn-small" id="modalDeleteBtn">Remove Item</button>
+      <button class="btn btn-danger btn-small edit-only" id="modalDeleteBtn">Remove Item</button>
       <button class="btn btn-ghost btn-small" onclick="closeModal()">Close</button>
     </div>
   </div>
@@ -596,10 +613,21 @@
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+// ===================== SUPABASE CONFIG =====================
+// >>> FILL THESE IN after creating your Supabase project (see setup instructions) <<<
+const SUPABASE_URL = 'https://scvcldcsrpneowzllkow.supabase.co/rest/v1/';        // e.g. https://abcdefgh.supabase.co
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNjdmNsZGNzcnBuZW93emxsa293Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTMzMTMsImV4cCI6MjA5NjgyOTMxM30.WzS2ESvuxw3TSzTMalqRL4VxUII73vjyfYKOXrJNGxI';
+
+const sb = SUPABASE_URL.startsWith('https')
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null; // null = local demo mode (browser-only storage)
+
 // ===================== STATE =====================
-const LS_ITEMS = 'clearance_items_v2';
-const LS_SETTINGS = 'clearance_settings_v2';
+const LS_ITEMS = 'clearance_items_v2';      // used in demo mode only
+const LS_SETTINGS = 'clearance_settings_v2'; // used in demo mode only
+const LS_PIN = 'ct_edit_pin';
 
 const DEFAULT_SETTINGS = {
   premiumDiscount: 22,
@@ -631,23 +659,187 @@ const DEFAULT_SETTINGS = {
 let items = [];
 let settings = {};
 let currentModalId = null;
+let editPin = localStorage.getItem(LS_PIN) || null;
+let canEdit = false;
+let lastLoad = 0;
+
+// ===================== PIN / EDIT MODE =====================
+function updateEditUI() {
+  document.body.classList.toggle('view-only', !canEdit);
+  const btn = document.getElementById('unlockBtn');
+  btn.textContent = canEdit ? '🔓 Editing on' : '🔒 Unlock editing';
+}
+
+async function toggleUnlock() {
+  if (!sb) { showToast('Demo mode — editing is always on'); return; }
+  if (canEdit) {
+    canEdit = false; editPin = null;
+    localStorage.removeItem(LS_PIN);
+    updateEditUI();
+    showToast('Editing locked');
+    return;
+  }
+  const pin = prompt('Enter the store edit PIN:');
+  if (!pin) return;
+  const { data, error } = await sb.rpc('verify_pin', { p_pin: pin });
+  if (error) { showError(error); return; }
+  if (data === true) {
+    editPin = pin; canEdit = true;
+    localStorage.setItem(LS_PIN, pin);
+    updateEditUI();
+    showToast('Editing unlocked');
+  } else {
+    showToast('Wrong PIN');
+  }
+}
+
+async function verifyStoredPin() {
+  if (!sb) { canEdit = true; updateEditUI(); return; }
+  if (!editPin) { updateEditUI(); return; }
+  const { data } = await sb.rpc('verify_pin', { p_pin: editPin });
+  if (data === true) canEdit = true;
+  else { editPin = null; localStorage.removeItem(LS_PIN); }
+  updateEditUI();
+}
+
+function requireEdit() {
+  if (canEdit) return true;
+  showToast('Click "Unlock editing" and enter the store PIN first');
+  return false;
+}
+
+function showError(error) {
+  const msg = String(error && error.message || error);
+  if (msg.includes('WRONG_PIN')) {
+    canEdit = false; editPin = null;
+    localStorage.removeItem(LS_PIN);
+    updateEditUI();
+    showToast('PIN no longer valid — unlock again');
+  } else {
+    const b = document.getElementById('errorBanner');
+    b.textContent = '⚠️ Database error: ' + msg;
+    b.classList.add('show');
+    setTimeout(() => b.classList.remove('show'), 8000);
+    showToast('Save failed — see message at top');
+  }
+}
+
+// ===================== DATA LAYER =====================
+function dbToItem(r) {
+  return {
+    id: r.id,
+    name: r.name,
+    brand: r.brand,
+    model: r.model || '',
+    listPrice: Number(r.list_price),
+    cost: r.cost == null ? null : Number(r.cost),
+    date: r.date,
+    addedAt: r.added_at
+  };
+}
+
+async function loadData() {
+  if (!sb) {
+    const saved = localStorage.getItem(LS_ITEMS);
+    items = saved ? JSON.parse(saved) : [];
+    const savedSettings = localStorage.getItem(LS_SETTINGS);
+    settings = savedSettings ? JSON.parse(savedSettings) : JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+    document.getElementById('configBanner').classList.add('show');
+    return;
+  }
+  document.getElementById('loadingBanner').classList.add('show');
+  try {
+    const [it, st] = await Promise.all([
+      sb.from('items').select('*').order('added_at', { ascending: true }),
+      sb.from('settings').select('data').eq('id', 1).maybeSingle()
+    ]);
+    if (it.error) throw it.error;
+    if (st.error) throw st.error;
+    items = (it.data || []).map(dbToItem);
+    settings = (st.data && st.data.data) ? st.data.data : JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+    lastLoad = Date.now();
+  } catch (e) {
+    showError(e);
+  } finally {
+    document.getElementById('loadingBanner').classList.remove('show');
+  }
+}
+
+async function persistSettings() {
+  if (!sb) { localStorage.setItem(LS_SETTINGS, JSON.stringify(settings)); return; }
+  const { error } = await sb.rpc('save_settings', { p_pin: editPin, p_data: settings });
+  if (error) showError(error);
+}
+
+async function dbAddItems(rows) {
+  // rows: [{name, brand, model, list_price, cost, date}]
+  if (!sb) {
+    const added = rows.map((r, i) => ({
+      id: (Date.now() + i).toString(),
+      name: r.name, brand: r.brand, model: r.model || '',
+      listPrice: r.list_price, cost: r.cost, date: r.date,
+      addedAt: new Date().toISOString()
+    }));
+    items.push(...added);
+    localStorage.setItem(LS_ITEMS, JSON.stringify(items));
+    return true;
+  }
+  const { data, error } = await sb.rpc('add_items', { p_pin: editPin, p_items: rows });
+  if (error) { showError(error); return false; }
+  (data || []).forEach(r => items.push(dbToItem(r)));
+  return true;
+}
+
+async function dbUpdateCost(id, cost) {
+  if (!sb) { localStorage.setItem(LS_ITEMS, JSON.stringify(items)); return true; }
+  const { error } = await sb.rpc('update_item_cost', { p_pin: editPin, p_id: id, p_cost: cost });
+  if (error) { showError(error); return false; }
+  return true;
+}
+
+async function dbDeleteItem(id) {
+  if (!sb) { localStorage.setItem(LS_ITEMS, JSON.stringify(items)); return true; }
+  const { error } = await sb.rpc('delete_item', { p_pin: editPin, p_id: id });
+  if (error) { showError(error); return false; }
+  return true;
+}
+
+// Live updates: re-fetch when anyone else changes data
+let reloadTimer = null;
+function scheduleReload() {
+  clearTimeout(reloadTimer);
+  reloadTimer = setTimeout(async () => {
+    await loadData();
+    loadSettingsUI();
+    renderPremiumBrandTags();
+    renderBrandOverridesTable();
+    renderTable();
+    updateStats();
+  }, 400);
+}
+
+function subscribeRealtime() {
+  if (!sb) return;
+  sb.channel('tracker-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'items' }, scheduleReload)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, scheduleReload)
+    .subscribe();
+  // Fallback: refresh when tab regains focus after 30s+
+  window.addEventListener('focus', () => {
+    if (Date.now() - lastLoad > 30000) scheduleReload();
+  });
+}
 
 // ===================== INIT =====================
-function init() {
-  const saved = localStorage.getItem(LS_ITEMS);
-  items = saved ? JSON.parse(saved) : [];
-
-  const savedSettings = localStorage.getItem(LS_SETTINGS);
-  settings = savedSettings ? JSON.parse(savedSettings) : { ...DEFAULT_SETTINGS };
-
-  // Set today as default date
+async function init() {
   document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
-
+  await Promise.all([loadData(), verifyStoredPin()]);
   loadSettingsUI();
   renderPremiumBrandTags();
   renderBrandOverridesTable();
   renderTable();
   updateStats();
+  subscribeRealtime();
 }
 
 // ===================== SETTINGS =====================
@@ -662,10 +854,11 @@ function loadSettingsUI() {
 }
 
 function saveSettings() {
+  if (!requireEdit()) { loadSettingsUI(); return; }
   settings.premiumDiscount = parseInt(document.getElementById('settingPremiumDiscount').value) || 20;
   settings.standardDiscount = parseInt(document.getElementById('settingStandardDiscount').value) || 30;
   settings.agingDiscount = parseInt(document.getElementById('settingAgingDiscount').value) || 10;
-  localStorage.setItem(LS_SETTINGS, JSON.stringify(settings));
+  persistSettings();
   renderBrandOverridesTable();
   renderTable();
   updateStats();
@@ -675,17 +868,18 @@ function saveSettings() {
 function renderPremiumBrandTags() {
   const container = document.getElementById('premiumBrandTags');
   container.innerHTML = settings.premiumBrands.map((b, i) =>
-    `<span class="brand-tag premium">${b} <span class="remove" onclick="removePremiumBrand(${i})">×</span></span>`
+    `<span class="brand-tag premium">${esc(b)} <span class="remove" onclick="removePremiumBrand(${i})">×</span></span>`
   ).join('');
 }
 
 function addPremiumBrand() {
+  if (!requireEdit()) return;
   const input = document.getElementById('addBrandInput');
   const val = input.value.trim();
   if (!val) return;
   if (!settings.premiumBrands.includes(val)) {
     settings.premiumBrands.push(val);
-    localStorage.setItem(LS_SETTINGS, JSON.stringify(settings));
+    persistSettings();
     renderPremiumBrandTags();
     renderTable();
     showToast(`${val} added as premium brand`);
@@ -694,9 +888,10 @@ function addPremiumBrand() {
 }
 
 function removePremiumBrand(idx) {
+  if (!requireEdit()) return;
   const name = settings.premiumBrands[idx];
   settings.premiumBrands.splice(idx, 1);
-  localStorage.setItem(LS_SETTINGS, JSON.stringify(settings));
+  persistSettings();
   renderPremiumBrandTags();
   renderTable();
   showToast(`${name} removed from premium`);
@@ -712,14 +907,11 @@ function isPremium(brand) {
 function getBrandStartingDiscount(brand) {
   if (!brand) return null;
   const overrides = settings.brandOverrides || {};
-  // exact match first
   if (overrides[brand] !== undefined) return overrides[brand];
-  // case-insensitive match
   const bl = brand.toLowerCase().trim();
   for (const [k, v] of Object.entries(overrides)) {
     if (k.toLowerCase().trim() === bl) return v;
   }
-  // partial match
   for (const [k, v] of Object.entries(overrides)) {
     if (bl.includes(k.toLowerCase().trim()) || k.toLowerCase().trim().includes(bl)) return v;
   }
@@ -774,7 +966,8 @@ function autoDetectBrandTier() {
   </span>`;
 }
 
-function addItem() {
+async function addItem() {
+  if (!requireEdit()) return;
   const name = document.getElementById('fName').value.trim();
   const brand = document.getElementById('fBrand').value.trim();
   const model = document.getElementById('fModel').value.trim();
@@ -787,21 +980,17 @@ function addItem() {
     return;
   }
 
-  const item = {
-    id: Date.now().toString(),
+  const ok = await dbAddItems([{
     name, brand, model,
-    listPrice: price,
+    list_price: price,
     cost: isNaN(cost) ? null : cost,
-    date,
-    addedAt: new Date().toISOString()
-  };
+    date
+  }]);
+  if (!ok) return;
 
-  items.push(item);
-  saveItems();
   renderTable();
   updateStats();
 
-  // Reset form
   document.getElementById('fName').value = '';
   document.getElementById('fBrand').value = '';
   document.getElementById('fModel').value = '';
@@ -811,11 +1000,6 @@ function addItem() {
   document.getElementById('brandTierPreview').innerHTML = '';
 
   showToast(`${name} added to clearance`);
-}
-
-// ===================== SAVE =====================
-function saveItems() {
-  localStorage.setItem(LS_ITEMS, JSON.stringify(items));
 }
 
 // ===================== STATS =====================
@@ -908,7 +1092,6 @@ function renderTable() {
         ? `<span class="next-drop soon">In ${nextDrop}d</span>`
         : `<span class="next-drop">In ${nextDrop}d</span>`;
 
-    // Cost status
     let costCell = '<span style="color:#ccc;font-size:11px;">—</span>';
     let atCostClass = '';
     if (item.cost != null) {
@@ -918,7 +1101,6 @@ function renderTable() {
         costCell = `<span class="cost-alert-badge">⚠ AT COST</span>`;
         atCostClass = 'at-cost-row';
       } else if (margin / item.cost < 0.10) {
-        // Within 10% of cost
         costCell = `<span class="near-cost-badge">Near cost</span>`;
       } else {
         costCell = `<span style="font-size:12px;color:#16a34a;font-weight:600;">+$${margin.toLocaleString('en-US',{maximumFractionDigits:0})} (${pct}%)</span>`;
@@ -965,10 +1147,10 @@ function showDetail(id) {
   const nextDrop = daysUntilNextDrop(item);
   const premium = isPremium(item.brand);
   const saved = item.listPrice - currentPrice;
-  const start = premium ? settings.premiumDiscount : settings.standardDiscount;
+  const override = getBrandStartingDiscount(item.brand);
+  const start = override !== null ? override : (premium ? settings.premiumDiscount : settings.standardDiscount);
   const isAtCost = item.cost != null && currentPrice <= item.cost;
 
-  // Build pricing schedule
   let scheduleRows = '';
   for (let p = 0; p <= 5; p++) {
     const d = Math.min(start + p * settings.agingDiscount, 95);
@@ -986,14 +1168,13 @@ function showDetail(id) {
     </tr>`;
   }
 
-  // Cost section
   const costSection = `
     <div class="modal-label" style="margin-top:6px;">Your Cost</div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-      <input type="number" id="modalCostInput" value="${item.cost != null ? item.cost : ''}" placeholder="Enter cost…"
+      <input type="number" id="modalCostInput" value="${item.cost != null ? item.cost : ''}" placeholder="Enter cost…" class="edit-only"
         style="padding:6px 10px;border:1px solid #ddd;border-radius:5px;font-size:13px;width:130px;">
-      <button class="btn btn-ghost btn-small" onclick="saveCost('${item.id}')">Save</button>
-      ${item.cost != null ? `<span style="font-size:12px;color:#888;">= $${item.cost.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>` : ''}
+      <button class="btn btn-ghost btn-small edit-only" onclick="saveCost('${item.id}')">Save</button>
+      ${item.cost != null ? `<span style="font-size:12px;color:#888;">= $${item.cost.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>` : '<span style="font-size:12px;color:#aaa;">not set</span>'}
     </div>
     ${isAtCost ? `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#991b1b;font-weight:600;">
       ⚠️ Clearance price ($${currentPrice.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}) is at or below your cost ($${item.cost.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})})
@@ -1034,24 +1215,29 @@ function closeModal() {
   currentModalId = null;
 }
 
-function saveCost(id) {
+async function saveCost(id) {
+  if (!requireEdit()) return;
   const item = items.find(i => i.id === id);
   if (!item) return;
   const val = parseFloat(document.getElementById('modalCostInput').value);
-  item.cost = isNaN(val) ? null : val;
-  saveItems();
+  const newCost = isNaN(val) ? null : val;
+  item.cost = newCost;
+  const ok = await dbUpdateCost(id, newCost);
+  if (!ok) return;
   renderTable();
   updateStats();
   showToast('Cost saved');
-  showDetail(id); // refresh modal
+  showDetail(id);
 }
 
-function deleteItem(id) {
+async function deleteItem(id) {
+  if (!requireEdit()) return;
   const item = items.find(i => i.id === id);
   if (!item) return;
   if (!confirm(`Remove "${item.name}" from clearance tracker?`)) return;
   items = items.filter(i => i.id !== id);
-  saveItems();
+  const ok = await dbDeleteItem(id);
+  if (!ok) { scheduleReload(); return; }
   renderTable();
   updateStats();
   closeModal();
@@ -1070,12 +1256,10 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-// Close modal on overlay click
 document.getElementById('detailModal').addEventListener('click', function(e) {
   if (e.target === this) closeModal();
 });
 
-// Enter key on brand add input
 document.getElementById('addBrandInput').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') addPremiumBrand();
 });
@@ -1111,7 +1295,6 @@ function exportCSV() {
 }
 
 // ===================== BRAND OVERRIDES UI =====================
-// Deduplicate overrides: keep only canonical (first casing) per brand
 function getCanonicalOverrides() {
   const overrides = settings.brandOverrides || {};
   const seen = {};
@@ -1131,7 +1314,6 @@ function renderBrandOverridesTable() {
     return;
   }
 
-  // Group by tier
   const tier1 = canonical.filter(o => o.value <= 17);
   const tier2 = canonical.filter(o => o.value > 17 && o.value <= 24);
   const tier3 = canonical.filter(o => o.value > 24 && o.value <= 32);
@@ -1172,12 +1354,13 @@ function renderBrandOverridesTable() {
 }
 
 function addBrandOverride() {
+  if (!requireEdit()) return;
   const brand = document.getElementById('addOverrideBrand').value.trim();
   const disc = parseInt(document.getElementById('addOverrideDisc').value);
   if (!brand || isNaN(disc)) { showToast('Enter brand name and %'); return; }
   if (!settings.brandOverrides) settings.brandOverrides = {};
   settings.brandOverrides[brand] = disc;
-  localStorage.setItem(LS_SETTINGS, JSON.stringify(settings));
+  persistSettings();
   renderBrandOverridesTable();
   renderTable();
   updateStats();
@@ -1187,16 +1370,16 @@ function addBrandOverride() {
 }
 
 function updateBrandOverride(brand, val) {
+  if (!requireEdit()) { renderBrandOverridesTable(); return; }
   const disc = parseInt(val);
   if (isNaN(disc)) return;
   if (!settings.brandOverrides) settings.brandOverrides = {};
-  // Update all variants of this brand name
   for (const k of Object.keys(settings.brandOverrides)) {
     if (k.toLowerCase().trim() === brand.toLowerCase().trim()) {
       settings.brandOverrides[k] = disc;
     }
   }
-  localStorage.setItem(LS_SETTINGS, JSON.stringify(settings));
+  persistSettings();
   renderBrandOverridesTable();
   renderTable();
   updateStats();
@@ -1204,13 +1387,14 @@ function updateBrandOverride(brand, val) {
 }
 
 function removeBrandOverride(brand) {
+  if (!requireEdit()) return;
   if (!settings.brandOverrides) return;
   for (const k of Object.keys(settings.brandOverrides)) {
     if (k.toLowerCase().trim() === brand.toLowerCase().trim()) {
       delete settings.brandOverrides[k];
     }
   }
-  localStorage.setItem(LS_SETTINGS, JSON.stringify(settings));
+  persistSettings();
   renderBrandOverridesTable();
   renderTable();
   updateStats();
@@ -1221,6 +1405,7 @@ function removeBrandOverride(brand) {
 let importRows = [];
 
 function openImportModal() {
+  if (!requireEdit()) return;
   importRows = [];
   document.getElementById('importPaste').value = '';
   document.getElementById('importFile').value = '';
@@ -1411,23 +1596,19 @@ function renderImportPreview() {
   btn.textContent = ok > 0 ? `Import ${ok} item${ok !== 1 ? 's' : ''}` : 'Import';
 }
 
-function confirmImport() {
+async function confirmImport() {
+  if (!requireEdit()) return;
   const ready = importRows.filter(r => r.status === 'ok');
   if (!ready.length) return;
-  const now = Date.now();
-  ready.forEach((r, i) => {
-    items.push({
-      id: (now + i).toString(),
-      name: r.name,
-      brand: r.brand,
-      model: r.model || '',
-      listPrice: r.listPrice,
-      cost: r.cost != null ? r.cost : null,
-      date: r.date,
-      addedAt: new Date().toISOString()
-    });
-  });
-  saveItems();
+  const ok = await dbAddItems(ready.map(r => ({
+    name: r.name,
+    brand: r.brand,
+    model: r.model || '',
+    list_price: r.listPrice,
+    cost: r.cost != null ? r.cost : null,
+    date: r.date
+  })));
+  if (!ok) return;
   renderTable();
   updateStats();
   closeImportModal();
@@ -1459,14 +1640,12 @@ function downloadImportTemplate() {
   drop.addEventListener('drop', e => handleImportFile(e.dataTransfer.files));
 })();
 
-// Close import modal on overlay click
 document.getElementById('importModal').addEventListener('click', function (e) {
   if (e.target === this) closeImportModal();
 });
 
 // ===================== START =====================
 init();
-
 </script>
 </body>
 </html>
