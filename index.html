@@ -1074,27 +1074,39 @@ async function importCSV(inp) {
   const file = inp.files[0]; if (!file) return;
   const reader = new FileReader();
   reader.onload = async function(e) {
-    const lines = e.target.result.split(/\r?\n/);
+    const raw = e.target.result;
+    const lines = raw.split(/\r?\n/);
     if (lines.length < 2) { showToast('Empty file'); return; }
-    const headers = lines[0].split(',').map(h => h.replace(/"/g,'').trim());
+    // Auto-detect delimiter: tab or comma
+    const delim = lines[0].includes('\t') ? '\t' : ',';
+
+    function splitLine(line) {
+      if (delim === '\t') return line.split('\t').map(v => v.replace(/^"|"$/g,'').trim());
+      const vals = []; let cur = '', inQ = false;
+      for (const c of line + ',') {
+        if (c === '"') inQ = !inQ;
+        else if (c === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
+        else cur += c;
+      }
+      return vals.map(v => v.replace(/^"|"$/g,'').trim());
+    }
+
+    const headers = splitLine(lines[0]).map(h => h.replace(/"/g,'').trim());
     const col = name => headers.findIndex(h => h.toLowerCase().replace(/[^a-z]/g,'') === name.toLowerCase().replace(/[^a-z]/g,''));
     const nameIdx = col('Item Name'), brandIdx = col('Brand'), listIdx = col('List Price');
     const modelIdx = col('Model'), serialIdx = col('Serial Number'), costIdx = col('Your Cost'), dateIdx = col('Date Added');
     if (nameIdx < 0 || brandIdx < 0 || listIdx < 0) { showToast('CSV needs: Item Name, Brand, List Price'); inp.value=''; return; }
     const newItems = []; let skipped = 0;
+    // Strip commas from numbers (e.g. 2,499.00 → 2499.00)
+    const toNum = str => parseFloat(String(str).replace(/,/g, ''));
     for (let i = 1; i < lines.length; i++) {
       if (!lines[i].trim()) continue;
-      const vals = []; let cur = '', inQ = false;
-      for (const c of lines[i] + ',') {
-        if (c === '"') inQ = !inQ;
-        else if (c === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
-        else cur += c;
-      }
-      const g = idx => idx >= 0 && idx < vals.length ? vals[idx].replace(/^"|"$/g,'').trim() : '';
-      const name = g(nameIdx), brand = g(brandIdx), lp = parseFloat(g(listIdx));
+      const vals = splitLine(lines[i]);
+      const g = idx => idx >= 0 && idx < vals.length ? vals[idx] : '';
+      const name = g(nameIdx), brand = g(brandIdx), lp = toNum(g(listIdx));
       if (!name || !brand || isNaN(lp)) { skipped++; continue; }
       if (items.find(it => it.name === name && it.brand === brand && it.listPrice === lp)) { skipped++; continue; }
-      const cost = parseFloat(g(costIdx));
+      const cost = toNum(g(costIdx));
       newItems.push({ id: Date.now()+'_'+i, name, brand, model: g(modelIdx), serial: g(serialIdx), listPrice: lp,
         cost: isNaN(cost) ? null : cost, date: g(dateIdx) || new Date().toISOString().split('T')[0],
         addedAt: new Date().toISOString() });
