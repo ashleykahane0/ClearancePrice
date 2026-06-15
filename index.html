@@ -808,8 +808,8 @@ function daysSince(dateStr) {
 
 function daysUntilNextDrop(item) {
   const days = daysSince(item.date);
-  const nextDrop = 30 - (days % 30);
-  return nextDrop === 30 ? 0 : nextDrop;
+  const rem = days % 30;
+  return rem === 0 ? 30 : 30 - rem;
 }
 
 // ===================== FORM =====================
