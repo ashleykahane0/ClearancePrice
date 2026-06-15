@@ -591,6 +591,7 @@
         <tr>
           <th>Item</th>
           <th>Brand</th>
+          <th>Serial</th>
           <th>List</th>
           <th>Price</th>
           <th>Off</th>
@@ -910,7 +911,7 @@ function renderTable() {
   if (filtered.length === 0) {
     tbody.innerHTML = '';
     empty.style.display = items.length === 0 ? 'block' : 'none';
-    if (items.length > 0) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-3);">No items match your filter.</td></tr>';
+    if (items.length > 0) tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text-3);">No items match your filter.</td></tr>';
     return;
   }
   empty.style.display = 'none';
@@ -959,9 +960,9 @@ function renderTable() {
       <td>
         <div class="item-name">${esc(item.name)}</div>
         ${item.model ? `<div class="item-model">${esc(item.model)}</div>` : ''}
-        ${item.serial ? `<div class="item-model" style="color:var(--text-3);">S/N ${esc(item.serial)}</div>` : ''}
       </td>
       <td><span class="brand-text ${premium ? 'premium' : ''}">${esc(item.brand)}</span></td>
+      <td><span style="font-size:12px;color:var(--text-2);font-family:monospace;">${item.serial ? esc(item.serial) : '<span style="color:var(--text-3);">—</span>'}</span></td>
       <td><span class="price-list">$${item.listPrice.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</span></td>
       <td><span class="price-current">$${currentPrice.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</span></td>
       <td><span class="disc-pct ${discClass}">${disc}%</span></td>
