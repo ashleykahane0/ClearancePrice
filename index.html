@@ -1095,7 +1095,10 @@ async function importCSV(inp) {
     const headers = splitLine(lines[0]).map(h => h.replace(/"/g,'').trim());
     const col = name => headers.findIndex(h => h.toLowerCase().replace(/[^a-z]/g,'') === name.toLowerCase().replace(/[^a-z]/g,''));
     const nameIdx = col('Item Name'), brandIdx = col('Brand'), listIdx = col('List Price');
-    const modelIdx = col('Model'), serialIdx = col('Serial Number'), costIdx = col('Your Cost'), dateIdx = col('Date Added');
+    const modelIdx = col('Model');
+    const serialIdx = col('Serial Number') >= 0 ? col('Serial Number') : col('Serial');
+    const costIdx = col('Your Cost') >= 0 ? col('Your Cost') : col('Cost');
+    const dateIdx = col('Date Added') >= 0 ? col('Date Added') : col('Date');
     if (nameIdx < 0 || brandIdx < 0 || listIdx < 0) { showToast('CSV needs: Item Name, Brand, List Price'); inp.value=''; return; }
     const newItems = []; let skipped = 0;
     // Strip commas from numbers (e.g. 2,499.00 → 2499.00)
