@@ -541,6 +541,10 @@
         <input type="text" id="fModel" placeholder="e.g. BI-36UFD">
       </div>
       <div class="form-group">
+        <label>Serial Number</label>
+        <input type="text" id="fSerial" placeholder="e.g. SZ123456">
+      </div>
+      <div class="form-group">
         <label>List Price *</label>
         <input type="number" id="fPrice" placeholder="0.00" min="0" step="0.01">
       </div>
@@ -629,6 +633,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 function dbToItem(row) {
   return {
     id: row.id, name: row.name, brand: row.brand, model: row.model || '',
+    serial: row.serial_number || '',
     listPrice: row.list_price, cost: row.cost != null ? Number(row.cost) : null,
     date: row.date, addedAt: row.added_at
   };
@@ -636,6 +641,7 @@ function dbToItem(row) {
 function itemToDb(item) {
   return {
     id: item.id, name: item.name, brand: item.brand, model: item.model || null,
+    serial_number: item.serial || null,
     list_price: item.listPrice, cost: item.cost != null ? item.cost : null,
     date: item.date, added_at: item.addedAt || new Date().toISOString()
   };
@@ -831,8 +837,9 @@ async function addItem() {
   const cost  = parseFloat(document.getElementById('fCost').value);
   const date  = document.getElementById('fDate').value;
   if (!name || !brand || !price || !date) { showToast('Fill in all required fields'); return; }
+  const serial = document.getElementById('fSerial').value.trim();
   const item = {
-    id: Date.now().toString(), name, brand, model,
+    id: Date.now().toString(), name, brand, model, serial,
     listPrice: price, cost: isNaN(cost) ? null : cost,
     date, addedAt: new Date().toISOString()
   };
@@ -842,7 +849,7 @@ async function addItem() {
   setSyncStatus('ok', 'Synced');
   items.unshift(item);
   renderTable(); updateStats();
-  ['fName','fBrand','fModel','fPrice','fCost'].forEach(id => document.getElementById(id).value = '');
+  ['fName','fBrand','fModel','fSerial','fPrice','fCost'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
   document.getElementById('brandTierPreview').innerHTML = '';
   showToast(`${name} added`);
@@ -875,7 +882,8 @@ function renderTable() {
 
   let filtered = items.filter(item => {
     const matchSearch = !search || item.name.toLowerCase().includes(search) ||
-      item.brand.toLowerCase().includes(search) || (item.model || '').toLowerCase().includes(search);
+      item.brand.toLowerCase().includes(search) || (item.model || '').toLowerCase().includes(search) ||
+      (item.serial || '').toLowerCase().includes(search);
     const matchBrand = !filterBrand ||
       (filterBrand === 'premium'  && isPremium(item.brand)) ||
       (filterBrand === 'standard' && !isPremium(item.brand)) ||
@@ -951,6 +959,7 @@ function renderTable() {
       <td>
         <div class="item-name">${esc(item.name)}</div>
         ${item.model ? `<div class="item-model">${esc(item.model)}</div>` : ''}
+        ${item.serial ? `<div class="item-model" style="color:var(--text-3);">S/N ${esc(item.serial)}</div>` : ''}
       </td>
       <td><span class="brand-text ${premium ? 'premium' : ''}">${esc(item.brand)}</span></td>
       <td><span class="price-list">$${item.listPrice.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</span></td>
@@ -1018,6 +1027,7 @@ function showDetail(id) {
     <div class="modal-label">Brand</div>
     <div class="modal-value">${esc(item.brand)}${premium ? ' <span style="font-size:11px;color:var(--accent);">Premium</span>' : ''}</div>
     ${item.model ? `<div class="modal-label">Model</div><div class="modal-value">${esc(item.model)}</div>` : ''}
+    ${item.serial ? `<div class="modal-label">Serial Number</div><div class="modal-value">${esc(item.serial)}</div>` : ''}
     <div class="modal-label">List Price</div>
     <div class="modal-value">$${item.listPrice.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
     <div class="modal-label">Current Price</div>
@@ -1069,7 +1079,7 @@ async function importCSV(inp) {
     const headers = lines[0].split(',').map(h => h.replace(/"/g,'').trim());
     const col = name => headers.findIndex(h => h.toLowerCase().replace(/[^a-z]/g,'') === name.toLowerCase().replace(/[^a-z]/g,''));
     const nameIdx = col('Item Name'), brandIdx = col('Brand'), listIdx = col('List Price');
-    const modelIdx = col('Model'), costIdx = col('Your Cost'), dateIdx = col('Date Added');
+    const modelIdx = col('Model'), serialIdx = col('Serial Number'), costIdx = col('Your Cost'), dateIdx = col('Date Added');
     if (nameIdx < 0 || brandIdx < 0 || listIdx < 0) { showToast('CSV needs: Item Name, Brand, List Price'); inp.value=''; return; }
     const newItems = []; let skipped = 0;
     for (let i = 1; i < lines.length; i++) {
@@ -1085,7 +1095,7 @@ async function importCSV(inp) {
       if (!name || !brand || isNaN(lp)) { skipped++; continue; }
       if (items.find(it => it.name === name && it.brand === brand && it.listPrice === lp)) { skipped++; continue; }
       const cost = parseFloat(g(costIdx));
-      newItems.push({ id: Date.now()+'_'+i, name, brand, model: g(modelIdx), listPrice: lp,
+      newItems.push({ id: Date.now()+'_'+i, name, brand, model: g(modelIdx), serial: g(serialIdx), listPrice: lp,
         cost: isNaN(cost) ? null : cost, date: g(dateIdx) || new Date().toISOString().split('T')[0],
         addedAt: new Date().toISOString() });
     }
@@ -1104,12 +1114,12 @@ async function importCSV(inp) {
 // ===================== EXPORT =====================
 function exportCSV() {
   if (items.length === 0) { showToast('No items to export'); return; }
-  const headers = ['Item Name','Brand','Model','List Price','Your Cost','Date Added','Days on Clearance','Starting Discount %','Current Discount %','Current Price','Next Price Drop (days)'];
+  const headers = ['Item Name','Brand','Model','Serial Number','List Price','Your Cost','Date Added','Days on Clearance','Starting Discount %','Current Discount %','Current Price','Next Price Drop (days)'];
   const rows = items.map(item => {
     const disc = calcDiscount(item), currentPrice = calcPrice(item), days = daysSince(item.date);
     const override = getBrandStartingDiscount(item.brand);
     const startDisc = override !== null ? override : (isPremium(item.brand) ? settings.premiumDiscount : settings.standardDiscount);
-    return [item.name, item.brand, item.model||'', item.listPrice.toFixed(2),
+    return [item.name, item.brand, item.model||'', item.serial||'', item.listPrice.toFixed(2),
       item.cost!=null?item.cost.toFixed(2):'', item.date, days, startDisc, disc,
       currentPrice.toFixed(2), daysUntilNextDrop(item)].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',');
   });
