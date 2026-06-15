@@ -1099,6 +1099,12 @@ async function importCSV(inp) {
     const newItems = []; let skipped = 0;
     // Strip commas from numbers (e.g. 2,499.00 → 2499.00)
     const toNum = str => parseFloat(String(str).replace(/,/g, ''));
+    // Fix serials that Excel mangled into scientific notation (e.g. 9.04E+08 → "904000000")
+    const fixSerial = s => {
+      if (!s) return s;
+      if (/^[\d.]+[eE][+\-]?\d+$/.test(s.trim())) return String(Math.round(Number(s)));
+      return s;
+    };
     for (let i = 1; i < lines.length; i++) {
       if (!lines[i].trim()) continue;
       const vals = splitLine(lines[i]);
@@ -1107,7 +1113,7 @@ async function importCSV(inp) {
       if (!name || !brand || isNaN(lp)) { skipped++; continue; }
       if (items.find(it => it.name === name && it.brand === brand && it.listPrice === lp)) { skipped++; continue; }
       const cost = toNum(g(costIdx));
-      newItems.push({ id: Date.now()+'_'+i, name, brand, model: g(modelIdx), serial: g(serialIdx), listPrice: lp,
+      newItems.push({ id: Date.now()+'_'+i, name, brand, model: g(modelIdx), serial: fixSerial(g(serialIdx)), listPrice: lp,
         cost: isNaN(cost) ? null : cost, date: g(dateIdx) || new Date().toISOString().split('T')[0],
         addedAt: new Date().toISOString() });
     }
