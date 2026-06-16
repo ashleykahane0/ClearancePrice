@@ -694,7 +694,7 @@ async function init() {
       settings = { ...DEFAULT_SETTINGS };
       await db.from('clearance_settings').upsert({ id: 1, data: settings });
     }
-    const { data: rows, error: iErr } = await db.from('clearance_items').select('*').order('added_at', { ascending: false });
+    const { data: rows, error: iErr } = await db.from('clearance_items').select('*').order('added_at', { ascending: false }).limit(10000);
     if (iErr) throw iErr;
     items = (rows || []).map(dbToItem);
     setSyncStatus('ok', 'Synced');
