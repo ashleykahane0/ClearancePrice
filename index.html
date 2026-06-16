@@ -500,8 +500,12 @@
         <input type="number" id="settingStandardDiscount" min="0" max="90" value="30" onchange="saveSettings()">
       </div>
       <div class="setting-group">
-        <label>Additional Discount Every 30 Days (%)</label>
+        <label>Standard Aging Every 30 Days (%)</label>
         <input type="number" id="settingAgingDiscount" min="0" max="30" value="10" onchange="saveSettings()">
+      </div>
+      <div class="setting-group">
+        <label>Premium Aging Every 30 Days (%)</label>
+        <input type="number" id="settingPremiumAgingDiscount" min="0" max="30" value="5" onchange="saveSettings()">
       </div>
     </div>
     <div style="margin-top:24px;">
@@ -656,7 +660,7 @@ function setSyncStatus(state, msg) {
 
 // ===================== STATE =====================
 const DEFAULT_SETTINGS = {
-  premiumDiscount: 20, standardDiscount: 30, agingDiscount: 10,
+  premiumDiscount: 20, standardDiscount: 30, agingDiscount: 10, premiumAgingDiscount: 5,
   premiumBrands: ['Sub-Zero','SubZero','Miele','Fisher & Paykel','Jenn-Air','Jenn Air',
     'Wolf','Gaggenau','Thermador','Viking','BlueStar','Hestan','La Cornue','Cove',
     'Monogram','Bosch','Fulgor Milano','Fhiaba'],
@@ -715,6 +719,7 @@ function loadSettingsUI() {
   document.getElementById('settingPremiumDiscount').value = settings.premiumDiscount;
   document.getElementById('settingStandardDiscount').value = settings.standardDiscount;
   document.getElementById('settingAgingDiscount').value = settings.agingDiscount;
+  document.getElementById('settingPremiumAgingDiscount').value = settings.premiumAgingDiscount ?? 5;
 }
 
 async function saveSettingsToDb() {
@@ -724,9 +729,10 @@ async function saveSettingsToDb() {
 }
 
 function saveSettings() {
-  settings.premiumDiscount  = parseInt(document.getElementById('settingPremiumDiscount').value)  || 20;
-  settings.standardDiscount = parseInt(document.getElementById('settingStandardDiscount').value) || 30;
-  settings.agingDiscount    = parseInt(document.getElementById('settingAgingDiscount').value)    || 10;
+  settings.premiumDiscount       = parseInt(document.getElementById('settingPremiumDiscount').value)       || 20;
+  settings.standardDiscount      = parseInt(document.getElementById('settingStandardDiscount').value)      || 30;
+  settings.agingDiscount         = parseInt(document.getElementById('settingAgingDiscount').value)         || 10;
+  settings.premiumAgingDiscount  = parseInt(document.getElementById('settingPremiumAgingDiscount').value)  || 5;
   renderBrandOverridesTable(); renderTable(); updateStats();
   showToast('Settings saved');
   saveSettingsToDb();
@@ -794,7 +800,8 @@ function calcDiscount(item) {
   const days = daysSince(item.date);
   const periods = Math.floor(days / 30);
   const agingOverride = getBrandAgingDiscount(item.brand);
-  const aging = agingOverride !== null ? agingOverride : (settings.agingDiscount || 10);
+  const defaultAging = isPremium(item.brand) ? (settings.premiumAgingDiscount ?? 5) : (settings.agingDiscount || 10);
+  const aging = agingOverride !== null ? agingOverride : defaultAging;
   const priceRatio = (1 - start / 100) * Math.pow(1 - aging / 100, periods);
   return Math.min(Math.round((1 - priceRatio) * 100 * 10) / 10, 95);
 }
@@ -994,7 +1001,7 @@ function showDetail(id) {
   const saved        = item.listPrice - currentPrice;
   const override     = getBrandStartingDiscount(item.brand);
   const start        = override !== null ? override : (premium ? settings.premiumDiscount : settings.standardDiscount);
-  const aging        = getBrandAgingDiscount(item.brand) || settings.agingDiscount;
+  const aging        = getBrandAgingDiscount(item.brand) || (isPremium(item.brand) ? (settings.premiumAgingDiscount ?? 5) : (settings.agingDiscount || 10));
   const isAtCost     = item.cost != null && currentPrice <= item.cost;
 
   let scheduleRows = '';
@@ -1185,7 +1192,7 @@ function renderBrandOverridesTable() {
     if (group.items.length === 0) continue;
     html += `<tr><td colspan="4" style="padding:6px 10px;font-size:10px;color:${group.color};text-transform:uppercase;letter-spacing:0.1em;font-weight:600;border-bottom:1px solid var(--border-lt);">${group.label}</td></tr>`;
     for (const o of group.items) {
-      const aging = getBrandAgingDiscount(o.key) || settings.agingDiscount || 10;
+      const aging = getBrandAgingDiscount(o.key) || (isPremium(o.key) ? (settings.premiumAgingDiscount ?? 5) : (settings.agingDiscount || 10));
       const schedule = [0,1,2,3].map(p => {
         const ratio = (1 - o.value/100) * Math.pow(1 - aging/100, p);
         const d = Math.min(Math.round((1-ratio)*100*10)/10, 95);
