@@ -317,20 +317,17 @@
   .item-name  { font-weight: 500; color: var(--text); letter-spacing: 0.01em; }
   .item-model { font-size: 11px; color: var(--text-3); margin-top: 2px; letter-spacing: 0.02em; }
 
-  /* Brand: just styled text, no pill */
   .brand-text { font-size: 12px; color: var(--text-2); }
   .brand-text.premium { color: var(--accent); }
 
   .price-list    { color: var(--text-3); text-decoration: line-through; font-size: 12px; }
   .price-current { font-weight: 500; font-size: 14px; color: var(--text); }
 
-  /* Discount: just the number */
   .disc-pct { font-size: 12px; font-weight: 600; }
   .disc-low  { color: var(--green); }
   .disc-mid  { color: var(--amber); }
   .disc-high { color: var(--red); }
 
-  /* Period indicator */
   .period-cell { display: flex; flex-direction: column; gap: 4px; }
   .age-val { font-size: 12px; color: var(--text-2); }
   .period-tag {
@@ -343,7 +340,6 @@
   .next-drop      { font-size: 11px; color: var(--text-3); }
   .next-drop.soon { color: var(--accent); font-weight: 600; }
 
-  /* At-cost */
   .at-cost-row { background: #fdf5f5 !important; border-left: 2px solid #d08080 !important; }
   .at-cost-row:hover { background: #faeaea !important; }
   .cost-alert {
@@ -422,7 +418,6 @@
   }
   .toast.show { opacity: 1; }
 
-  /* ── Period row tints ── */
   .period-0 { background: #f6faf5; border-left: 2px solid #a8d5b0; }
   .period-1 { background: #fdfbf0; border-left: 2px solid #e8d080; }
   .period-2 { background: #fdf8f0; border-left: 2px solid #e0b070; }
@@ -454,7 +449,7 @@
   <div class="header-right">
     <span class="sync-label sync-loading" id="syncStatus"><span class="sync-dot"></span>Connecting</span>
     <button class="btn btn-outline" onclick="document.getElementById('importFile').click()">Import</button>
-    <input type="file" id="importFile" accept=".csv" style="display:none" onchange="importCSV(this)">
+    <input type="file" id="importFile" accept=".csv,.tsv,.txt" style="display:none" onchange="importCSV(this)">
     <button class="btn btn-outline" onclick="exportCSV()">Export</button>
     <button class="btn btn-outline" onclick="toggleSettings()">Settings</button>
     <button class="btn btn-primary" onclick="toggleForm()">+ Add Item</button>
@@ -463,7 +458,6 @@
 
 <div class="main">
 
-  <!-- Stats strip -->
   <div class="stats-strip" id="statsBar">
     <div class="stat-item">
       <span class="stat-n" id="statTotal">—</span>
@@ -487,7 +481,6 @@
     </div>
   </div>
 
-  <!-- Settings panel -->
   <div class="settings-panel" id="settingsPanel">
     <div class="panel-title">Pricing Settings</div>
     <div class="settings-grid">
@@ -528,7 +521,6 @@
     </div>
   </div>
 
-  <!-- Add Item form -->
   <div class="add-form" id="addForm">
     <div class="form-title">New Clearance Item</div>
     <div class="form-grid">
@@ -568,7 +560,6 @@
     </div>
   </div>
 
-  <!-- Filter bar -->
   <div class="filter-bar">
     <input type="text" id="searchInput" placeholder="Search items…" oninput="renderTable()">
     <select id="filterBrand" onchange="renderTable()">
@@ -588,7 +579,6 @@
     <span class="filter-count" id="filterCount"></span>
   </div>
 
-  <!-- Table -->
   <div class="table-wrap">
     <table>
       <thead>
@@ -606,7 +596,7 @@
         </tr>
       </thead>
       <tbody id="tableBody">
-        <tr><td colspan="9" style="text-align:center;padding:48px;color:var(--text-3);letter-spacing:0.06em;font-size:12px;">Loading…</td></tr>
+        <tr><td colspan="10" style="text-align:center;padding:48px;color:var(--text-3);letter-spacing:0.06em;font-size:12px;">Loading…</td></tr>
       </tbody>
     </table>
     <div class="empty-state" id="emptyState" style="display:none;">
@@ -615,7 +605,6 @@
   </div>
 </div>
 
-<!-- Modal -->
 <div class="modal-overlay" id="detailModal">
   <div class="modal">
     <div class="modal-heading" id="modalTitle">Item Detail</div>
@@ -637,9 +626,9 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 function dbToItem(row) {
   return {
-    id: row.id, name: row.name, brand: row.brand, model: row.model || '',
+    id: String(row.id), name: row.name, brand: row.brand, model: row.model || '',
     serial: row.serial_number || '',
-    listPrice: row.list_price, cost: row.cost != null ? Number(row.cost) : null,
+    listPrice: Number(row.list_price), cost: row.cost != null ? Number(row.cost) : null,
     startingDiscount: row.starting_discount != null ? Number(row.starting_discount) : null,
     date: row.date, addedAt: row.added_at
   };
@@ -706,7 +695,7 @@ async function init() {
     settings = { ...DEFAULT_SETTINGS };
     items = [];
   }
-  document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('fDate').value = todayISO();
   loadSettingsUI();
   renderPremiumBrandTags();
   renderBrandOverridesTable();
@@ -721,7 +710,7 @@ function loadSettingsUI() {
   document.getElementById('settingPremiumDiscount').value = settings.premiumDiscount;
   document.getElementById('settingStandardDiscount').value = settings.standardDiscount;
   document.getElementById('settingAgingDiscount').value = settings.agingDiscount;
-  document.getElementById('settingPremiumAgingDiscount').value = settings.premiumAgingDiscount ?? 5;
+  document.getElementById('settingPremiumAgingDiscount').value = numOr(settings.premiumAgingDiscount, 5);
 }
 
 async function saveSettingsToDb() {
@@ -731,10 +720,11 @@ async function saveSettingsToDb() {
 }
 
 function saveSettings() {
-  settings.premiumDiscount       = parseInt(document.getElementById('settingPremiumDiscount').value)       || 20;
-  settings.standardDiscount      = parseInt(document.getElementById('settingStandardDiscount').value)      || 30;
-  settings.agingDiscount         = parseInt(document.getElementById('settingAgingDiscount').value)         || 10;
-  settings.premiumAgingDiscount  = parseInt(document.getElementById('settingPremiumAgingDiscount').value)  || 5;
+  // numOr keeps a deliberate 0 instead of snapping back to the default
+  settings.premiumDiscount      = numOr(parseInt(document.getElementById('settingPremiumDiscount').value), 20);
+  settings.standardDiscount     = numOr(parseInt(document.getElementById('settingStandardDiscount').value), 30);
+  settings.agingDiscount        = numOr(parseInt(document.getElementById('settingAgingDiscount').value), 10);
+  settings.premiumAgingDiscount = numOr(parseInt(document.getElementById('settingPremiumAgingDiscount').value), 5);
   renderBrandOverridesTable(); renderTable(); updateStats();
   showToast('Settings saved');
   saveSettingsToDb();
@@ -742,7 +732,7 @@ function saveSettings() {
 
 function renderPremiumBrandTags() {
   document.getElementById('premiumBrandTags').innerHTML = settings.premiumBrands.map((b, i) =>
-    `<span class="brand-tag premium">${b} <span class="remove" onclick="removePremiumBrand(${i})">×</span></span>`
+    `<span class="brand-tag premium">${esc(b)} <span class="remove" onclick="removePremiumBrand(${i})">×</span></span>`
   ).join('');
 }
 
@@ -752,7 +742,7 @@ function addPremiumBrand() {
   if (!val) return;
   if (!settings.premiumBrands.includes(val)) {
     settings.premiumBrands.push(val);
-    renderPremiumBrandTags(); renderTable();
+    renderPremiumBrandTags(); renderTable(); updateStats();
     showToast(`${val} added`);
     saveSettingsToDb();
   }
@@ -762,65 +752,81 @@ function addPremiumBrand() {
 function removePremiumBrand(idx) {
   const name = settings.premiumBrands[idx];
   settings.premiumBrands.splice(idx, 1);
-  renderPremiumBrandTags(); renderTable();
+  renderPremiumBrandTags(); renderTable(); updateStats();
   showToast(`${name} removed`);
   saveSettingsToDb();
 }
 
 // ===================== BRAND LOGIC =====================
+// Brands match if they're the same ignoring case/spaces/punctuation ("Kitchen Aid" = "KitchenAid"),
+// or if one is a whole-word part of the other ("Cafe" ⊂ "GE Cafe"). Plain letter-substring
+// matching is gone: it made "GE" hit "Gaggenau", "LG" hit "Fulgor Milano", "Geberit" hit "GE".
+const brandNorm  = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const brandWords = s => ' ' + String(s || '').toLowerCase().replace(/&/g, ' and ')
+  .split(/[^a-z0-9]+/).filter(Boolean).join(' ') + ' ';
+
+function brandMatches(a, b) {
+  if (!brandNorm(a) || !brandNorm(b)) return false;
+  if (brandNorm(a) === brandNorm(b)) return true;
+  const wa = brandWords(a), wb = brandWords(b);
+  return wa.includes(wb) || wb.includes(wa);
+}
+
+function lookupBrand(map, brand) {
+  if (!brand) return null;
+  const entries = Object.entries(map || {});
+  const n = brandNorm(brand);
+  for (const [k, v] of entries) if (brandNorm(k) === n) return v;
+  for (const [k, v] of entries) if (brandMatches(k, brand)) return v;
+  return null;
+}
+
 function isPremium(brand) {
-  const b = brand.toLowerCase().trim();
-  return settings.premiumBrands.some(pb => pb.toLowerCase().trim() === b ||
-    b.includes(pb.toLowerCase().trim()) || pb.toLowerCase().trim().includes(b));
+  return (settings.premiumBrands || []).some(pb => brandMatches(pb, brand));
 }
 
-function getBrandStartingDiscount(brand) {
-  if (!brand) return null;
-  const overrides = settings.brandOverrides || {};
-  if (overrides[brand] !== undefined) return overrides[brand];
-  const bl = brand.toLowerCase().trim();
-  for (const [k, v] of Object.entries(overrides)) { if (k.toLowerCase().trim() === bl) return v; }
-  for (const [k, v] of Object.entries(overrides)) {
-    if (bl.includes(k.toLowerCase().trim()) || k.toLowerCase().trim().includes(bl)) return v;
-  }
-  return null;
+function getBrandStartingDiscount(brand) { return lookupBrand(settings.brandOverrides, brand); }
+function getBrandAgingDiscount(brand)    { return lookupBrand(settings.brandAgingOverrides, brand); }
+
+function brandDefaultStart(brand) {
+  const o = getBrandStartingDiscount(brand);
+  if (o !== null) return o;
+  return isPremium(brand) ? numOr(settings.premiumDiscount, 20) : numOr(settings.standardDiscount, 30);
 }
 
-function getBrandAgingDiscount(brand) {
-  if (!brand) return null;
-  const overrides = settings.brandAgingOverrides || {};
-  const bl = brand.toLowerCase().trim();
-  for (const [k, v] of Object.entries(overrides)) {
-    if (k.toLowerCase().trim() === bl || bl.includes(k.toLowerCase().trim()) || k.toLowerCase().trim().includes(bl)) return v;
-  }
-  return null;
+function getStartDiscount(item) {
+  return item.startingDiscount != null ? item.startingDiscount : brandDefaultStart(item.brand);
+}
+
+function getAging(brand) {
+  const o = getBrandAgingDiscount(brand);
+  if (o !== null) return o;
+  return isPremium(brand) ? numOr(settings.premiumAgingDiscount, 5) : numOr(settings.agingDiscount, 10);
+}
+
+function discountAtPeriod(start, aging, periods) {
+  const ratio = (1 - start / 100) * Math.pow(1 - aging / 100, periods);
+  return Math.min(Math.round((1 - ratio) * 100 * 10) / 10, 95);
 }
 
 function calcDiscount(item) {
-  const override = getBrandStartingDiscount(item.brand);
-  const brandStart = override !== null ? override : (isPremium(item.brand) ? settings.premiumDiscount : settings.standardDiscount);
-  const start = item.startingDiscount != null ? item.startingDiscount : brandStart;
-  const days = daysSince(item.date);
-  const periods = Math.floor(days / 30);
-  const agingOverride = getBrandAgingDiscount(item.brand);
-  const defaultAging = isPremium(item.brand) ? (settings.premiumAgingDiscount ?? 5) : (settings.agingDiscount || 10);
-  const aging = agingOverride !== null ? agingOverride : defaultAging;
-  const priceRatio = (1 - start / 100) * Math.pow(1 - aging / 100, periods);
-  return Math.min(Math.round((1 - priceRatio) * 100 * 10) / 10, 95);
+  const periods = Math.floor(daysSince(item.date) / 30);
+  return discountAtPeriod(getStartDiscount(item), getAging(item.brand), periods);
 }
 
 function calcPrice(item) { return item.listPrice * (1 - calcDiscount(item) / 100); }
 
+// Future or unreadable dates count as day 0 instead of producing negative ages
 function daysSince(dateStr) {
-  const then = new Date(dateStr + 'T00:00:00');
+  const iso = normalizeDate(dateStr);
+  if (!iso) return 0;
+  const then = new Date(iso + 'T00:00:00');
   const now = new Date(); now.setHours(0,0,0,0);
-  return Math.floor((now - then) / 86400000);
+  return Math.max(0, Math.floor((now - then) / 86400000));
 }
 
 function daysUntilNextDrop(item) {
-  const days = daysSince(item.date);
-  const rem = days % 30;
-  return rem === 0 ? 30 : 30 - rem;
+  return 30 - (daysSince(item.date) % 30);
 }
 
 // ===================== FORM =====================
@@ -834,10 +840,8 @@ function autoDetectBrandTier() {
   const brand = document.getElementById('fBrand').value.trim();
   const preview = document.getElementById('brandTierPreview');
   if (!brand) { preview.innerHTML = ''; return; }
-  const override = getBrandStartingDiscount(brand);
   const premium = isPremium(brand);
-  const disc = override !== null ? override : (premium ? settings.premiumDiscount : settings.standardDiscount);
-  preview.innerHTML = `${premium ? '⭐ Premium' : '◆ Standard'} — starts at <strong style="color:var(--accent)">${disc}% off</strong> list`;
+  preview.innerHTML = `${premium ? '⭐ Premium' : '◆ Standard'} — starts at <strong style="color:var(--accent)">${brandDefaultStart(brand)}% off</strong> list`;
 }
 
 async function addItem() {
@@ -851,7 +855,7 @@ async function addItem() {
   const serial = document.getElementById('fSerial').value.trim();
   const item = {
     id: Date.now().toString(), name, brand, model, serial,
-    listPrice: price, cost: isNaN(cost) ? null : cost,
+    listPrice: price, cost: isNaN(cost) ? null : cost, startingDiscount: null,
     date, addedAt: new Date().toISOString()
   };
   setSyncStatus('loading', 'Saving');
@@ -861,12 +865,10 @@ async function addItem() {
   items.unshift(item);
   renderTable(); updateStats();
   ['fName','fBrand','fModel','fSerial','fPrice','fCost'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('fDate').value = todayISO();
   document.getElementById('brandTierPreview').innerHTML = '';
   showToast(`${name} added`);
 }
-
-function saveItems() {}
 
 // ===================== STATS =====================
 function updateStats() {
@@ -903,8 +905,8 @@ function renderTable() {
   });
 
   filtered.sort((a, b) => {
-    if (sort === 'date_desc')     return new Date(b.date) - new Date(a.date);
-    if (sort === 'date_asc')      return new Date(a.date) - new Date(b.date);
+    if (sort === 'date_desc')     return daysSince(a.date) - daysSince(b.date);
+    if (sort === 'date_asc')      return daysSince(b.date) - daysSince(a.date);
     if (sort === 'price_desc')    return calcPrice(b) - calcPrice(a);
     if (sort === 'price_asc')     return calcPrice(a) - calcPrice(b);
     if (sort === 'discount_desc') return calcDiscount(b) - calcDiscount(a);
@@ -926,7 +928,6 @@ function renderTable() {
   }
   empty.style.display = 'none';
 
-  // Period labels and colors
   const periodLabels = ['Period 1', 'Period 2', 'Period 3', 'Period 4'];
   const periodTextColors = ['#4a7c59', '#a16207', '#c2410c', '#9b3a3a'];
 
@@ -937,13 +938,14 @@ function renderTable() {
     const nextDrop     = daysUntilNextDrop(item);
     const premium      = isPremium(item.brand);
     const bucket       = Math.min(Math.floor(days / 30), 3);
+    const droppedToday = days > 0 && days % 30 === 0;
 
     let discClass = 'disc-low';
     if (disc >= 50) discClass = 'disc-high';
     else if (disc >= 35) discClass = 'disc-mid';
 
-    const nextDropText = nextDrop === 0
-      ? '<span class="next-drop soon">Today</span>'
+    const nextDropText = droppedToday
+      ? '<span class="next-drop soon">Dropped today</span>'
       : nextDrop <= 7
         ? `<span class="next-drop soon">${nextDrop}d</span>`
         : `<span class="next-drop">${nextDrop}d</span>`;
@@ -954,19 +956,18 @@ function renderTable() {
 
     if (item.cost != null) {
       const margin = currentPrice - item.cost;
-      const pct    = ((margin / item.cost) * 100).toFixed(0);
       if (currentPrice <= item.cost) {
         costCell    = `<span class="cost-alert">At cost</span>`;
         atCostClass = 'at-cost-row';
         rowClass    = '';
-      } else if (margin / item.cost < 0.10) {
+      } else if (item.cost > 0 && margin / item.cost < 0.10) {
         costCell = `<span class="near-cost">Near cost</span>`;
       } else {
         costCell = `<span style="font-size:12px;color:var(--green);font-weight:500;">+$${margin.toLocaleString('en-US',{maximumFractionDigits:0})}</span>`;
       }
     }
 
-    return `<tr onclick="showDetail('${item.id}')" style="cursor:pointer;" class="${atCostClass || rowClass}">
+    return `<tr onclick="showDetail(this.dataset.id)" data-id="${esc(item.id)}" style="cursor:pointer;" class="${atCostClass || rowClass}">
       <td>
         <div class="item-name">${esc(item.name)}</div>
         ${item.model ? `<div class="item-model">${esc(item.model)}</div>` : ''}
@@ -984,8 +985,8 @@ function renderTable() {
       </td>
       <td>${nextDropText}</td>
       <td>${costCell}</td>
-      <td onclick="event.stopPropagation()" style="text-align:right;">
-        <button class="btn btn-ghost" style="font-size:10px;padding:4px 10px;" onclick="showDetail('${item.id}')">View</button>
+      <td style="text-align:right;">
+        <button class="btn btn-ghost" style="font-size:10px;padding:4px 10px;">View</button>
       </td>
     </tr>`;
   }).join('');
@@ -1002,16 +1003,13 @@ function showDetail(id) {
   const nextDrop     = daysUntilNextDrop(item);
   const premium      = isPremium(item.brand);
   const saved        = item.listPrice - currentPrice;
-  const override     = getBrandStartingDiscount(item.brand);
-  const brandStart   = override !== null ? override : (premium ? settings.premiumDiscount : settings.standardDiscount);
-  const start        = item.startingDiscount != null ? item.startingDiscount : brandStart;
-  const aging        = getBrandAgingDiscount(item.brand) || (isPremium(item.brand) ? (settings.premiumAgingDiscount ?? 5) : (settings.agingDiscount || 10));
+  const start        = getStartDiscount(item);
+  const aging        = getAging(item.brand);
   const isAtCost     = item.cost != null && currentPrice <= item.cost;
 
   let scheduleRows = '';
   for (let p = 0; p <= 5; p++) {
-    const priceRatio = (1 - start / 100) * Math.pow(1 - aging / 100, p);
-    const d     = Math.min(Math.round((1 - priceRatio) * 100 * 10) / 10, 95);
+    const d     = discountAtPeriod(start, aging, p);
     const price = item.listPrice * (1 - d / 100);
     const isCurrent = days >= p * 30 && days < (p + 1) * 30;
     const hitsOrBelowCost = item.cost != null && price <= item.cost;
@@ -1025,11 +1023,11 @@ function showDetail(id) {
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
       <input type="number" id="modalCostInput" value="${item.cost != null ? item.cost : ''}" placeholder="Enter cost"
         style="padding:7px 10px;border:1px solid var(--border);border-radius:2px;font-size:13px;width:130px;background:var(--white);">
-      <button class="btn btn-ghost" onclick="saveCost('${item.id}')">Save</button>
+      <button class="btn btn-ghost" onclick="saveCost(currentModalId)">Save</button>
     </div>
     ${isAtCost ? `<div style="border:1px solid #e0b0b0;padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--red);letter-spacing:0.02em;">
       Clearance price is at or below cost
-    </div>` : (item.cost != null && (currentPrice - item.cost) / item.cost < 0.10 ? `<div style="border:1px solid #e0d080;padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--amber);">
+    </div>` : (item.cost != null && item.cost > 0 && (currentPrice - item.cost) / item.cost < 0.10 ? `<div style="border:1px solid #e0d080;padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--amber);">
       Within 10% of cost
     </div>` : '')}
   `;
@@ -1082,74 +1080,164 @@ async function deleteItem(id) {
 }
 
 // ===================== IMPORT =====================
+// Each row is matched to an existing item by ID (in exports), then serial number, then
+// name + brand + list price. Matched rows update that item; unmatched rows are added.
+// Identical units without serials each claim a separate existing item, so repeats aren't dropped.
 async function importCSV(inp) {
   const file = inp.files[0]; if (!file) return;
   const reader = new FileReader();
   reader.onload = async function(e) {
-    const raw = e.target.result;
+    const raw = e.target.result.replace(/^\uFEFF/, '');
     const lines = raw.split(/\r?\n/);
-    if (lines.length < 2) { showToast('Empty file'); return; }
-    // Auto-detect delimiter: tab or comma
+    if (lines.length < 2) { showToast('Empty file'); inp.value = ''; return; }
     const delim = lines[0].includes('\t') ? '\t' : ',';
 
     function splitLine(line) {
       if (delim === '\t') return line.split('\t').map(v => v.replace(/^"|"$/g,'').trim());
       const vals = []; let cur = '', inQ = false;
-      for (const c of line + ',') {
-        if (c === '"') inQ = !inQ;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (c === '"') {
+          if (inQ && line[i + 1] === '"') { cur += '"'; i++; }   // escaped quote ""
+          else inQ = !inQ;
+        }
         else if (c === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
         else cur += c;
       }
-      return vals.map(v => v.replace(/^"|"$/g,'').trim());
+      vals.push(cur.trim());
+      return vals;
     }
 
-    const headers = splitLine(lines[0]).map(h => h.replace(/"/g,'').trim());
-    const col = name => headers.findIndex(h => h.toLowerCase().replace(/[^a-z]/g,'') === name.toLowerCase().replace(/[^a-z]/g,''));
-    const nameIdx = col('Item Name'), brandIdx = col('Brand'), listIdx = col('List Price');
-    const modelIdx = col('Model');
-    const serialIdx = col('Serial Number') >= 0 ? col('Serial Number') : col('Serial');
-    const costIdx = col('Your Cost') >= 0 ? col('Your Cost') : col('Cost');
-    const dateIdx = col('Date Added') >= 0 ? col('Date Added') : col('Date');
-    const notesIdx    = col('Notes') >= 0 ? col('Notes') : col('Features');
+    const headers = splitLine(lines[0]);
+    const norm = s => s.toLowerCase().replace(/[^a-z]/g,'');
+    const col = (...names) => {
+      for (const n of names) { const i = headers.findIndex(h => norm(h) === norm(n)); if (i >= 0) return i; }
+      return -1;
+    };
+    const idIdx       = col('ID');
+    const nameIdx     = col('Item Name');
+    const brandIdx    = col('Brand');
+    const listIdx     = col('List Price');
+    const modelIdx    = col('Model');
+    const serialIdx   = col('Serial Number', 'Serial');
+    const costIdx     = col('Your Cost', 'Cost');
+    const dateIdx     = col('Date Added', 'Date');
+    // Exports made before the ID column existed always wrote the brand default here, not the
+    // item's real starting discount, so that column is ignored for those files.
+    const oldExport   = idIdx < 0 && col('Current Price') >= 0;
+    const startIdx    = oldExport ? -1 : col('Starting Discount %', 'Starting Discount');
+    const notesIdx    = col('Notes', 'Features');
     const receivedIdx = col('Received');
     if (nameIdx < 0 || brandIdx < 0 || listIdx < 0) { showToast('CSV needs: Item Name, Brand, List Price'); inp.value=''; return; }
-    const newItems = []; let skipped = 0;
-    // Strip commas from numbers (e.g. 2,499.00 → 2499.00)
-    const toNum = str => parseFloat(String(str).replace(/,/g, ''));
-    // Fix serials that Excel mangled into scientific notation (e.g. 9.04E+08 → "904000000")
+
+    const toNum = str => { const s = String(str).replace(/[$,\s]/g, ''); return s === '' ? NaN : parseFloat(s); };
     const fixSerial = s => {
       if (!s) return s;
       if (/^[\d.]+[eE][+\-]?\d+$/.test(s.trim())) return String(Math.round(Number(s)));
       return s;
     };
+    const serialKey = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const itemKey = (name, brand, lp) => `${String(name).trim().toLowerCase()}|${brandNorm(brand)}|${Number(lp).toFixed(2)}`;
+
+    // Indexes over what's already in the tracker
+    const byId = new Map(items.map(it => [String(it.id), it]));
+    const bySerial = new Map();
+    const byKey = new Map();
+    for (const it of items) {
+      const s = serialKey(it.serial);
+      if (s && !bySerial.has(s)) bySerial.set(s, it);
+      const k = itemKey(it.name, it.brand, it.listPrice);
+      if (!byKey.has(k)) byKey.set(k, []);
+      byKey.get(k).push(it);
+    }
+    const claimed = new Set();
+    function findMatch(id, serial, key) {
+      if (id && byId.has(id) && !claimed.has(id)) return byId.get(id);
+      const s = serialKey(serial);
+      if (s && bySerial.has(s) && !claimed.has(bySerial.get(s).id)) return bySerial.get(s);
+      const pool = byKey.get(key) || [];
+      // a different serial means a different physical unit
+      return pool.find(it => !claimed.has(it.id) &&
+        (!s || !serialKey(it.serial) || serialKey(it.serial) === s)) || null;
+    }
+
+    const toWrite = [];     // items to upsert (new + changed)
+    const newItems = [];
+    const updates = [];     // [existing, updated]
+    let unchanged = 0, skipped = 0;
+    const today = todayISO();
+
     for (let i = 1; i < lines.length; i++) {
       if (!lines[i].trim()) continue;
       const vals = splitLine(lines[i]);
       const g = idx => idx >= 0 && idx < vals.length ? vals[idx] : '';
       const name = g(nameIdx), brand = g(brandIdx), lp = toNum(g(listIdx));
       if (!name || !brand || isNaN(lp)) { skipped++; continue; }
-      if (items.find(it => it.name === name && it.brand === brand && it.listPrice === lp)) { skipped++; continue; }
-      const cost = toNum(g(costIdx));
-      const notes = g(notesIdx).toUpperCase();
-      const isClrNew = notes.includes('CLRNEW');
+
+      const serial = serialIdx >= 0 ? fixSerial(g(serialIdx)) : undefined;
+      const existing = findMatch(g(idIdx), serial, itemKey(name, brand, lp));
+      if (existing) claimed.add(existing.id);
+
+      // Starting discount: an explicit value in the file wins if it differs from the brand default,
+      // then the Received-year / CLRNEW rules, then whatever the item already had.
+      let startingDiscount = existing ? existing.startingDiscount : null;
       const receivedRaw = g(receivedIdx);
       const receivedYear = receivedRaw ? new Date(receivedRaw).getFullYear() : null;
-      let startingDiscount = null;
+      const isClrNew = g(notesIdx).toUpperCase().includes('CLRNEW');
       if (receivedYear === 2023) startingDiscount = 50;
       else if (receivedYear === 2024) startingDiscount = 40;
       else if (isClrNew) startingDiscount = isPremium(brand) ? 15 : 20;
-      newItems.push({ id: Date.now()+'_'+i, name, brand, model: g(modelIdx), serial: fixSerial(g(serialIdx)), listPrice: lp,
-        cost: isNaN(cost) ? null : cost, startingDiscount,
-        date: g(dateIdx) || new Date().toISOString().split('T')[0],
-        addedAt: new Date().toISOString() });
+      const fileStart = toNum(g(startIdx));
+      if (!isNaN(fileStart) && fileStart !== brandDefaultStart(brand)) startingDiscount = fileStart;
+
+      const cost = costIdx >= 0 ? toNum(g(costIdx)) : NaN;
+      const date = normalizeDate(g(dateIdx));
+
+      const next = {
+        id: existing ? existing.id : Date.now() + '_' + i,
+        name, brand,
+        model:  modelIdx >= 0 ? g(modelIdx) : (existing ? existing.model : ''),
+        serial: serialIdx >= 0 ? serial : (existing ? existing.serial : ''),
+        listPrice: lp,
+        cost: costIdx >= 0 ? (isNaN(cost) ? null : cost) : (existing ? existing.cost : null),
+        startingDiscount,
+        date: date || (existing ? existing.date : today),
+        addedAt: existing ? existing.addedAt : new Date().toISOString()
+      };
+
+      if (existing) {
+        const a = JSON.stringify(itemToDb(existing)), b = JSON.stringify(itemToDb(next));
+        if (a === b) { unchanged++; continue; }
+        updates.push([existing, next]);
+      } else {
+        newItems.push(next);
+      }
+      toWrite.push(next);
     }
-    if (newItems.length === 0) { showToast('No new items'); inp.value=''; return; }
+
+    if (toWrite.length === 0) {
+      showToast(`Nothing to change — ${unchanged} already up to date` + (skipped ? `, ${skipped} skipped` : ''));
+      inp.value = ''; return;
+    }
+
     setSyncStatus('loading', 'Importing');
-    const { error } = await db.from('clearance_items').upsert(newItems.map(itemToDb));
-    if (error) { setSyncStatus('err', 'Import failed'); showToast('Import error: ' + error.message); inp.value=''; return; }
+    for (let i = 0; i < toWrite.length; i += 500) {
+      const { error } = await db.from('clearance_items').upsert(toWrite.slice(i, i + 500).map(itemToDb));
+      if (error) {
+        setSyncStatus('err', 'Import failed'); showToast('Import error: ' + error.message);
+        inp.value = ''; return;
+      }
+    }
     setSyncStatus('ok', 'Synced');
-    items.push(...newItems); renderTable(); updateStats();
-    showToast(newItems.length + ' imported' + (skipped ? ', ' + skipped + ' skipped' : ''));
+    for (const [existing, next] of updates) Object.assign(existing, next);
+    items.push(...newItems);
+    renderTable(); updateStats();
+    const parts = [];
+    if (newItems.length) parts.push(`${newItems.length} added`);
+    if (updates.length)  parts.push(`${updates.length} updated`);
+    if (unchanged)       parts.push(`${unchanged} unchanged`);
+    if (skipped)         parts.push(`${skipped} skipped`);
+    showToast(parts.join(', '));
     inp.value = '';
   };
   reader.readAsText(file);
@@ -1158,20 +1246,18 @@ async function importCSV(inp) {
 // ===================== EXPORT =====================
 function exportCSV() {
   if (items.length === 0) { showToast('No items to export'); return; }
-  const headers = ['Item Name','Brand','Model','Serial Number','List Price','Your Cost','Date Added','Days on Clearance','Starting Discount %','Current Discount %','Current Price','Next Price Drop (days)'];
+  const headers = ['Item Name','Brand','Model','Serial Number','List Price','Your Cost','Date Added','Days on Clearance','Starting Discount %','Current Discount %','Current Price','Next Price Drop (days)','ID'];
   const rows = items.map(item => {
     const disc = calcDiscount(item), currentPrice = calcPrice(item), days = daysSince(item.date);
-    const override = getBrandStartingDiscount(item.brand);
-    const startDisc = override !== null ? override : (isPremium(item.brand) ? settings.premiumDiscount : settings.standardDiscount);
     return [item.name, item.brand, item.model||'', item.serial||'', item.listPrice.toFixed(2),
-      item.cost!=null?item.cost.toFixed(2):'', item.date, days, startDisc, disc,
-      currentPrice.toFixed(2), daysUntilNextDrop(item)].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',');
+      item.cost!=null?item.cost.toFixed(2):'', item.date, days, getStartDiscount(item), disc,
+      currentPrice.toFixed(2), daysUntilNextDrop(item), item.id].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',');
   });
   const csv = [headers.join(','),...rows].join('\n');
   const blob = new Blob([csv],{type:'text/csv'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href=url; a.download=`clearance-${new Date().toISOString().split('T')[0]}.csv`;
+  a.href=url; a.download=`clearance-${todayISO()}.csv`;
   a.click(); URL.revokeObjectURL(url);
   showToast(`Exported ${items.length} items`);
 }
@@ -1192,32 +1278,27 @@ function renderBrandOverridesTable() {
   if (!container) return;
   const canonical = getCanonicalOverrides();
   if (canonical.length === 0) { container.innerHTML = '<div style="font-size:12px;color:var(--text-3);padding:8px 0;">No overrides set.</div>'; return; }
-  const tier1 = canonical.filter(o => o.value <= 17);
-  const tier2 = canonical.filter(o => o.value > 17 && o.value <= 24);
-  const tier3 = canonical.filter(o => o.value > 24 && o.value <= 32);
-  const tier4 = canonical.filter(o => o.value > 32);
   const groups = [
-    { label: 'Top tier  ≤17%',   color: '#4a7c59', items: tier1 },
-    { label: 'Premium  18–24%',  color: '#0369a1', items: tier2 },
-    { label: 'Mid  25–32%',      color: '#7c3aed', items: tier3 },
-    { label: 'Standard+  >32%',  color: '#b5633a', items: tier4 },
+    { label: 'Top tier  ≤17%',   color: '#4a7c59', items: canonical.filter(o => o.value <= 17) },
+    { label: 'Premium  18–24%',  color: '#0369a1', items: canonical.filter(o => o.value > 17 && o.value <= 24) },
+    { label: 'Mid  25–32%',      color: '#7c3aed', items: canonical.filter(o => o.value > 24 && o.value <= 32) },
+    { label: 'Standard+  >32%',  color: '#b5633a', items: canonical.filter(o => o.value > 32) },
   ];
   let html = '<table class="overrides-table"><thead><tr><th>Brand</th><th>Starting %</th><th>30-day schedule</th><th></th></tr></thead><tbody>';
   for (const group of groups) {
     if (group.items.length === 0) continue;
     html += `<tr><td colspan="4" style="padding:6px 10px;font-size:10px;color:${group.color};text-transform:uppercase;letter-spacing:0.1em;font-weight:600;border-bottom:1px solid var(--border-lt);">${group.label}</td></tr>`;
     for (const o of group.items) {
-      const aging = getBrandAgingDiscount(o.key) || (isPremium(o.key) ? (settings.premiumAgingDiscount ?? 5) : (settings.agingDiscount || 10));
-      const schedule = [0,1,2,3].map(p => {
-        const ratio = (1 - o.value/100) * Math.pow(1 - aging/100, p);
-        const d = Math.min(Math.round((1-ratio)*100*10)/10, 95);
-        return `<span style="background:var(--bg);padding:1px 5px;border-radius:2px;margin-right:2px;font-size:11px;">${d}%</span>`;
-      }).join('→');
+      const aging = getAging(o.key);
+      const schedule = [0,1,2,3].map(p =>
+        `<span style="background:var(--bg);padding:1px 5px;border-radius:2px;margin-right:2px;font-size:11px;">${discountAtPeriod(o.value, aging, p)}%</span>`
+      ).join('→');
+      // brand passed via data-attribute so names with apostrophes don't break the handler
       html += `<tr>
         <td><span class="tier-dot" style="background:${group.color}"></span>${esc(o.key)}</td>
-        <td><input type="number" value="${o.value}" min="0" max="90" onchange="updateBrandOverride('${esc(o.key)}', this.value)"> <span style="font-size:10px;color:var(--text-3);">%</span></td>
+        <td><input type="number" value="${o.value}" min="0" max="90" data-brand="${esc(o.key)}" onchange="updateBrandOverride(this.dataset.brand, this.value)"> <span style="font-size:10px;color:var(--text-3);">%</span></td>
         <td>${schedule}</td>
-        <td><span style="cursor:pointer;color:var(--text-3);font-size:14px;" onclick="removeBrandOverride('${esc(o.key)}')">×</span></td>
+        <td><span style="cursor:pointer;color:var(--text-3);font-size:14px;" data-brand="${esc(o.key)}" onclick="removeBrandOverride(this.dataset.brand)">×</span></td>
       </tr>`;
     }
   }
@@ -1260,8 +1341,28 @@ function removeBrandOverride(brand) {
 }
 
 // ===================== UTILS =====================
+function numOr(v, d) { const n = Number(v); return (v === null || v === undefined || v === '' || isNaN(n)) ? d : n; }
+
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// Accepts 2026-09-16, 9/16/2026, 9/16/26 (Excel often rewrites dates this way). Returns YYYY-MM-DD or ''.
+function normalizeDate(s) {
+  s = String(s || '').trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+  if (m) {
+    const y = m[3].length === 2 ? '20' + m[3] : m[3];
+    return `${y}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+  }
+  return '';
+}
+
 function esc(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 function showToast(msg) {
   const t = document.getElementById('toast');
